@@ -101,15 +101,13 @@ def TwIST(desampleConvolvedNoise,A,tau,realSignal,alpha,beta):
                     print("f is increasing")
                     max_svd=2*max_svd
                     IST_iters=0
-                    TwIST_iters=0
-                    
+                    TwIST_iters=0   
                 else:
                     TwIST_iters=TwIST_iters+1
                     print(i)
                     i+=1
                     for_ever=1
                     break
-         
         xm2=xm1    
         xm1=x
         iter=iter+1
@@ -120,7 +118,77 @@ def TwIST(desampleConvolvedNoise,A,tau,realSignal,alpha,beta):
         SAD.append(sum(abs(x-realSignal))) 
         
         return x
-       
+
+
+
+def clean_out_TwIST(desampleConvolvedNoise, A, tau, realSignal, alpha, beta):
+    import numpy as np
+    
+    # Custom SNR calculation
+    def calculate_snr(signal, axis=None):
+        mean_signal = np.mean(signal, axis)
+        std_signal = np.std(signal, axis)
+        return np.where(std_signal == 0, 0, mean_signal / std_signal)
+    
+    # Ensure A is a numpy array
+    A = np.array(A)
+    desampleConvolvedNoise = np.array(desampleConvolvedNoise)
+    realSignal = np.array(realSignal)
+
+    # Ensure proper shapes
+    if desampleConvolvedNoise.ndim == 1:
+        desampleConvolvedNoise = desampleConvolvedNoise[:, np.newaxis]
+    if realSignal.ndim == 1:
+        realSignal = realSignal[:, np.newaxis]
+    
+    # Check dimensions
+    m, n = A.shape
+    if desampleConvolvedNoise.shape[0] != m:
+        raise ValueError(f"Incompatible shapes: A has {m} rows but desampleConvolvedNoise has {desampleConvolvedNoise.shape[0]} rows")
+    if realSignal.shape[0] != n:
+        raise ValueError(f"Incompatible shapes: A has {n} columns but realSignal has {realSignal.shape[0]} rows")
+    
+    # Stopping criteria and initialization
+    iter = 1
+    maxiter = 1000
+    x = np.zeros((n, 1))
+    xm2 = x
+    xm1 = xm2
+    mse = [np.mean((x - realSignal) ** 2)]
+    SNR = [calculate_snr(x, axis=None)]
+    SAD = [np.sum(np.abs(x - realSignal))]
+    
+    while iter < maxiter:
+        # Compute the gradient
+        Ax = np.dot(A, x)
+        if Ax.shape != desampleConvolvedNoise.shape:
+            raise ValueError(f"Incompatible shapes: np.dot(A, x) has shape {Ax.shape} but desampleConvolvedNoise has shape {desampleConvolvedNoise.shape}")
+        grad = np.dot(A.T, (desampleConvolvedNoise - Ax))
+        
+        # Perform the TV denoising/shrinkage step
+        x = TV_denoise(xm1 + grad / 1.0, tau / 1.0)
+        
+        if iter > 1:
+            xm2 = (alpha - beta) * xm1 + (1 - alpha) * xm2 + beta * x
+            x = xm2
+
+        # Update previous estimates
+        xm2 = xm1
+        xm1 = x
+        
+        # Monitor convergence
+        iter += 1
+        mse.append(np.mean((x - realSignal) ** 2))
+        SNR.append(calculate_snr(x, axis=None))
+        SAD.append(np.sum(np.abs(x - realSignal)))
+
+        # Check for convergence
+        if iter % 10 == 0:
+            print(f"Iteration {iter}: MSE = {mse[-1]}, SNR = {SNR[-1]}, SAD = {SAD[-1]}")
+    
+    return x
+
+
 
 def TwIST2(desampleConvolvedNoise, A, tau, alpha, beta, realSignal):
     import numpy as np
