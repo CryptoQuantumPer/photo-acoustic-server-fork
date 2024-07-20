@@ -6,7 +6,10 @@ poolobj = gcp('nocreate');
 if ~isempty(poolobj)
     delete(poolobj);
 end
-% parpool('local'); % commment if disable parallel computation
+bool_parallel_computation = true;
+if bool_parallel_computation == true
+    parpool('local'); % commment if disable parallel computation
+end
 
 % Set up the computational grid
 Nx = 160;   % number of grid points in the x direction
@@ -22,12 +25,12 @@ medium.density = 1000;     % [kg/m^3]
 
 
 kgrid = makeGrid(Nx, dx, Ny, dy);
-num_time_steps = 600;       % Number of time steps for the simulation
-cfl = 1;                   % CFL number for time step calculation
-dt = cfl * dx / medium.sound_speed; % Time step size
-t_end = dt * (num_time_steps - 1);  % Total simulation time
-kgrid.t_array = 0:dt:t_end;  % Time array for the simulation
-disp(kgrid.t_array)
+% num_time_steps = 10000;       % Number of time steps for the simulation
+% cfl = 2;                   % CFL number for time step calculation
+% dt = cfl * dx / medium.sound_speed; % Time step size
+% t_end = dt * (num_time_steps - 1);  % Total simulation time
+% kgrid.t_array = 0:dt:t_end;  % Time array for the simulation
+% disp(kgrid.t_array)
 
 % Define the source with initial pressure distribution (p0)
 % --use the following source code for single source point
@@ -45,25 +48,32 @@ input_args = {'PMLInside', false, ...
               'PMLSize', [0, 0], ...
               'PMLAlpha', 0, ...  % Disable PML by setting PMLAlpha to 0
               'Smooth', false, ...
-              'PlotPML', false,}
+              'PlotPML', false,};
 
-
-% create A system matrix
-K = {};
-for m = 1:10:Ny
-    for n = 1:10:Nx
-        fprintf('x: %d, y: %d\n', n, m);
-        source.p0 = zeros(Nx, Ny);
-        source.p0(n, m) = 2;
-        k_sensor_output = kspaceFirstOrder2D(kgrid, medium, source, sensor, input_args{:});
-        fprintf('k_sensor_output: %d\n shape', k_sensor_output); 
-        K = [K, k_sensor_output];
+             
+% false : if skip the generation of system matrix
+num_xy_steps_pixel = 5;
+bool_generate_system_matrix = true;
+bool_save_system_matrix_k = true;
+if bool_generate_system_matrix == true
+    K = {};
+    for m = 1:num_xy_steps_pixel:Ny
+        for n = 1:num_xy_steps_pixel:Nx
+            fprintf('x: %d, y: %d\n', n, m);
+            source.p0 = zeros(Nx, Ny); 
+            source.p0(n, m) = 2;
+            k_sensor_output = kspaceFirstOrder2D(kgrid, medium, source, sensor, input_args{:});
+            disp(size(k_sensor_output))
+            K = [K, k_sensor_output];
+        end
+    end
+    if bool_save_system_matrix_k == true
+        save('system_matrix.mat', 'K');
     end
 end
 
-save('system_matrix.mat', 'K')
 
-% generate binary Image sensor data
+% load binary Image for inputing as sensor data
 binary_image = imread('vascular.png');
 binary_image = im2bw(binary_image);
 binary_image = imresize(binary_image, [Nx, Ny]);  % Resize the image to match the grid
@@ -94,5 +104,6 @@ end
 
 % Reshape recorded data to match the number of spatial points
 p_recorded = reshape(sensor_data_noisy, [], 1);  % Reshape to a vector
+disp(size(p_recorded))
 
-save("sensor_data_noisy.mat", "p_recorded", "M_0", "sensor_data_noisy", "sensor", "medium")
+save("sensor_data_noisy.mat", "p_recorded", "M_0", "sensor_data_noisy", "sensor", "medium", "sensor_data");
