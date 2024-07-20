@@ -25,11 +25,15 @@ import importlib.util
 import os
 import numpy as np
 
+
+def TVNorm(x):
+    return np.sum(np.abs(np.diff(x, axis=0)))
+def TV_denoise(x, tau):
+    return np.sign(x) * np.maximum(np.abs(x) - tau, 0)
+
 # def TwIST(desampleConvolvedNoise,A,tau,lamb,realSignal,alpha,beta): # original function head
 def TwIST(desampleConvolvedNoise,A,tau,realSignal,alpha,beta):
     import numpy as np
-    from TVNorm import TVNorm
-    from TV_denoise import TV_denoise
     # TVNorm = TVNorm.TVNorm
     # TV_denoise = TV_denoise.TV_denoise
     import scipy.stats
@@ -120,7 +124,6 @@ def TwIST(desampleConvolvedNoise,A,tau,realSignal,alpha,beta):
         return x
 
 
-
 def clean_out_TwIST(desampleConvolvedNoise, A, tau, realSignal, alpha, beta):
     import numpy as np
     
@@ -151,12 +154,12 @@ def clean_out_TwIST(desampleConvolvedNoise, A, tau, realSignal, alpha, beta):
     # Stopping criteria and initialization
     iter = 1
     maxiter = 1000
-    x = np.zeros((n, 1))
-    xm2 = x
-    xm1 = xm2
+    x, xm2, xm1 = np.zeros((n, 1)), x, xm2
     mse = [np.mean((x - realSignal) ** 2)]
     SNR = [calculate_snr(x, axis=None)]
     SAD = [np.sum(np.abs(x - realSignal))]
+    # SNR (Signal-to-Noise Ratio), MSE (Mean square error), 
+    # SAD (Sum of Absolute Differences), Ax Variance
     
     while iter < maxiter:
         # Compute the gradient
