@@ -6,7 +6,7 @@ poolobj = gcp('nocreate');
 if ~isempty(poolobj)
     delete(poolobj);
 end
-bool_parallel_computation = false;
+bool_parallel_computation = true;
 if bool_parallel_computation == true
     parpool('local'); % commment if disable parallel computation
 end
@@ -52,16 +52,16 @@ input_args = {'PMLInside', false, ...
 
              
 % false : if skip the generation of system matrix
-num_xy_steps_pixel = 5;
-bool_generate_system_matrix = false;
-bool_save_system_matrix_k = false;
+num_xy_steps_pixel = 1;
+bool_generate_system_matrix = true;
+bool_save_system_matrix_k = true;
 if bool_generate_system_matrix == true
     K = {};
     for m = 1:num_xy_steps_pixel:Ny
         for n = 1:num_xy_steps_pixel:Nx
             fprintf('x: %d, y: %d\n', n, m);
             source.p0 = zeros(Nx, Ny); 
-            source.p0(n, m) = 2;
+            source.p0(n, m) = 1;
             k_sensor_output = kspaceFirstOrder2D(kgrid, medium, source, sensor, input_args{:});
             disp(size(k_sensor_output))
             K = [K, k_sensor_output];
@@ -74,17 +74,47 @@ end
 
 
 % load binary Image for inputing as sensor data
+source.p0 = zeros(Nx, Ny);
 binary_image = imread('vascular.png');
 binary_image = im2bw(binary_image);
 binary_image = imresize(binary_image, [Nx, Ny]);  % Resize the image to match the grid
-source.p0 = double(binary_image);
+% source.p0 = double(binary_image);
+% source.p0(80, 70) = 1;  % setting the point source
+
+center_x = 50;  % X coordinate of the center
+center_y = 60;  % Y coordinate of the center
+width = 10;     % Width of the square
+height = 10;    % Height of the square
+grid = zeros(Nx, Ny);
+
+half_width = width / 2;
+half_height = height / 2;
+
+x_start = round(center_x - half_width);
+x_end = round(center_x + half_width - 1);
+y_start = round(center_y - half_height);
+y_end = round(center_y + half_height - 1);
+x_start = max(x_start, 1);
+x_end = min(x_end, Nx);
+y_start = max(y_start, 1);
+y_end = min(y_end, Ny);
+grid(x_start:x_end, y_start:y_end) = 1;
+
+imagesc(grid);
+axis equal;
+colorbar;
+title('Square Source in the Grid');
+
+source.p0 = grid;
+
 
 % Run the forward simulation
 sensor_data = kspaceFirstOrder2D(kgrid, medium, source, sensor, input_args{:});
 
 % Add noise to the sensor data
-signal_to_noise_ratio = 0;
-sensor_data_noisy = addNoise(sensor_data, signal_to_noise_ratio, 'peak');
+% signal_to_noise_ratio = 0;
+% sensor_data_noisy = addNoise(sensor_data, signal_to_noise_ratio, 'peak');
+sensor_data_noisy = sensor_data;
 
 % Plot the noisy sensor data
 figure;
