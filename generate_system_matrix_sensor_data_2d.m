@@ -1,7 +1,5 @@
 clear
-
-addpath('/Users/nontakornbunluesriruang/Downloads/k-wave-toolbox-version-1/k-Wave')
-
+addpath('E:/Necleotide Codes/k-wave-toolbox-version-1/k-Wave');
 poolobj = gcp('nocreate');
 if ~isempty(poolobj)
     delete(poolobj);
@@ -14,9 +12,11 @@ end
 % Set up the computational grid
 Nx = 160;   % number of grid points in the x direction
 Ny = 120;   % number of grid points in the y direction
+% 10 Mhz grid spacing settings
 % dx = 7.5e-5;  % grid point spacing in the x direction [m]
 % dy = 7.5e-5;  % grid point spacing in the y direction [m]
-dx = 3e-5;
+% 25 Mhz grid spacing settings
+dx = 3e-5; 
 dy = 3e-5;
 
 % Define the properties of the medium
@@ -43,32 +43,57 @@ sensor.mask(1, 120) = 1; % place sensor at (x, y) coordinates
 % sensor.mask = zeros(Nx, Ny);
 % sensor.mask(1, :) = 1; % place sensors along the top edge
 
-% Define additional optional input arguments
+
 input_args = {'PMLInside', false, ...
               'PMLSize', [0, 0], ...
               'PMLAlpha', 0, ...  % Disable PML by setting PMLAlpha to 0
               'Smooth', false, ...
-              'PlotPML', false,};
-
+              'PlotPML', false, ...
+              'DataCast', 'gpuArray-single'};  % Use GPU for faster computation
              
+              
 % false : if skip the generation of system matrix
-num_xy_steps_pixel = 1;
 bool_generate_system_matrix = true;
 bool_save_system_matrix_k = true;
-if bool_generate_system_matrix == true
-    K = {};
-    for m = 1:num_xy_steps_pixel:Ny
-        for n = 1:num_xy_steps_pixel:Nx
-            fprintf('x: %d, y: %d\n', n, m);
-            source.p0 = zeros(Nx, Ny); 
-            source.p0(n, m) = 1;
-            k_sensor_output = kspaceFirstOrder2D(kgrid, medium, source, sensor, input_args{:});
-            disp(size(k_sensor_output))
-            K = [K, k_sensor_output];
+bool_gpu_compute = true;
+num_xy_steps_pixel = 1; % only in non-gpu mode
+
+if bool_gpu_compute
+    if bool_generate_system_matrix == true
+        K = cell(Nx, Ny);  % Preallocate cell array
+        parfor m = 1:Ny
+            local_K = cell(1, Nx);  % Preallocate local cell array for each worker
+            local_source_p0 = zeros(Nx, Ny, 'gpuArray-single');
+            for n = 1:num_xy_steps_pixel:Nx
+                fprintf('x: %d, y: %d\n', n, m);
+                source_p0 = local_source_p0;
+                source_p0(n, m) = 1;
+                local_K{n} = gather(kspaceFirstOrder2D(kgrid, medium, struct('p0', source_p0), sensor, input_args{:}));
+            end
+            K(m, :) = local_K;  % Store local results in the main K matrix
+        end
+
+        if bool_save_system_matrix_k == true
+            save('system_matrix.mat', 'K');
         end
     end
-    if bool_save_system_matrix_k == true
-        save('system_matrix.mat', 'K');
+else
+    if bool_generate_system_matrix == true
+        K = cell(Nx * Ny, 1);  % Preallocate cell array
+        
+        % Use parallel for loop to speed up the computation
+        parfor idx = 1:(Nx * Ny)
+            [n, m] = ind2sub([Nx, Ny], idx);
+            fprintf('x: %d, y: %d\n', n, m);
+            source_p0 = gpuArray.zeros(Nx, Ny, 'single');
+            source_p0(n, m) = 1;
+            k_sensor_output = kspaceFirstOrder2D(kgrid, medium, struct('p0', source_p0), sensor, input_args{:});
+            K{idx} = gather(k_sensor_output);  % Gather results from GPU to CPU
+        end
+
+        if bool_save_system_matrix_k == true
+            save('system_matrix.mat', 'K');
+        end
     end
 end
 
