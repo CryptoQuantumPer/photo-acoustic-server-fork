@@ -6,7 +6,7 @@ poolobj = gcp('nocreate');
 if ~isempty(poolobj)
     delete(poolobj);
 end
-bool_parallel_computation = true;
+bool_parallel_computation = false;
 if bool_parallel_computation == true
     parpool('local'); % commment if disable parallel computation
 end
@@ -53,8 +53,8 @@ input_args = {'PMLInside', false, ...
              
 % false : if skip the generation of system matrix
 num_xy_steps_pixel = 5;
-bool_generate_system_matrix = true;
-bool_save_system_matrix_k = true;
+bool_generate_system_matrix = false;
+bool_save_system_matrix_k = false;
 if bool_generate_system_matrix == true
     K = {};
     for m = 1:num_xy_steps_pixel:Ny
@@ -83,7 +83,7 @@ source.p0 = double(binary_image);
 sensor_data = kspaceFirstOrder2D(kgrid, medium, source, sensor, input_args{:});
 
 % Add noise to the sensor data
-signal_to_noise_ratio = 40;
+signal_to_noise_ratio = 0;
 sensor_data_noisy = addNoise(sensor_data, signal_to_noise_ratio, 'peak');
 
 % Plot the noisy sensor data
