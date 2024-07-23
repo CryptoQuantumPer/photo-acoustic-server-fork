@@ -24,7 +24,7 @@ beta = 0.5
 import sys
 sys.path.append('gitclone/Image-Restoration-Algorithm-TwIST')
 
-from view.TwIST import TwIST
+from view.copy_TwIST import TwIST
 x = TwIST(desampleConvolvedNoise, A, tau, realSignal, alpha, beta)
 print("Reconstructed signal:", x)
 

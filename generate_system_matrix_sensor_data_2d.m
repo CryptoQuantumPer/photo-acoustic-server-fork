@@ -6,7 +6,7 @@ poolobj = gcp('nocreate');
 if ~isempty(poolobj)
     delete(poolobj);
 end
-bool_parallel_computation = true;
+bool_parallel_computation = false;
 if bool_parallel_computation == true
     parpool('local'); % commment if disable parallel computation
 end
@@ -53,8 +53,8 @@ input_args = {'PMLInside', false, ...
              
 % false : if skip the generation of system matrix
 num_xy_steps_pixel = 1;
-bool_generate_system_matrix = true;
-bool_save_system_matrix_k = true;
+bool_generate_system_matrix = false;
+bool_save_system_matrix_k = false;
 if bool_generate_system_matrix == true
     K = {};
     for m = 1:num_xy_steps_pixel:Ny
@@ -78,7 +78,7 @@ source.p0 = zeros(Nx, Ny);
 binary_image = imread('vascular.png');
 binary_image = im2bw(binary_image);
 binary_image = imresize(binary_image, [Nx, Ny]);  % Resize the image to match the grid
-% source.p0 = double(binary_image);
+source.p0 = double(binary_image);
 % source.p0(80, 70) = 1;  % setting the point source
 
 center_x = 50;  % X coordinate of the center
@@ -100,12 +100,9 @@ y_start = max(y_start, 1);
 y_end = min(y_end, Ny);
 grid(x_start:x_end, y_start:y_end) = 1;
 
-imagesc(grid);
-axis equal;
-colorbar;
-title('Square Source in the Grid');
+% uncomment to use 10x10 grid square
+% source.p0 = grid;
 
-source.p0 = grid;
 
 
 % Run the forward simulation
@@ -122,6 +119,11 @@ plot(sensor_data_noisy);
 xlabel('Time Index');
 ylabel('Pressure');
 title('Simulated Noisy Sensor Data');
+imagesc(source.p0);
+axis equal;
+colorbar;
+title('Square Source in the Grid');
+
 
 % Calculate mode shapes
 [X, Y] = meshgrid((0:Nx-1) * dx, (0:Ny-1) * dy);
