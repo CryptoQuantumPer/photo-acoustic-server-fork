@@ -1,4 +1,7 @@
 clear
+
+tic;
+
 addpath('E:/Necleotide Codes/k-wave-toolbox-version-1/k-Wave');
 poolobj = gcp('nocreate');
 if ~isempty(poolobj)
@@ -53,6 +56,7 @@ if bool_generate_system_matrix == true
 
     if bool_save_system_matrix_k == true
         save('system_matrix.mat', 'K');
+        disp("successfuly save system_matrix data")
     end
 end
 
@@ -112,3 +116,6 @@ p_recorded = reshape(sensor_data, [], 1);  % Reshape to a vector
 
 % Save data
 save("sensor_data_noisy.mat", "p_recorded", "M_0", "sensor_data", "sensor", "medium", "sensor_data");
+
+elapsedTime = toc;
+fprintf('Total runtime: %.2f seconds\n', elapsedTime);
