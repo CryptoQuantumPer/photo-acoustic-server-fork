@@ -1,5 +1,5 @@
 clear
-addpath('/Users/nontakornbunluesriruang/Downloads/k-wave-toolbox-version-1/k-Wave')
+addpath('E:/Necleotide Codes/k-wave-toolbox-version-1/k-Wave');
 
 % Clear any existing parallel pools
 poolobj = gcp('nocreate');

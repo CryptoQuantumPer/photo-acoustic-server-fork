@@ -1,13 +1,12 @@
 clear
 
 tic;
-
 addpath('E:/Necleotide Codes/k-wave-toolbox-version-1/k-Wave');
 poolobj = gcp('nocreate');
 if ~isempty(poolobj)
     delete(poolobj);
 end
-bool_parallel_computation = true;
+bool_parallel_computation = false;
 if bool_parallel_computation == true
     parpool('local'); % comment if disable parallel computation
 end
