@@ -1,4 +1,6 @@
 clear
+
+addpath('/Users/nontakornbunluesriruang/Downloads/k-wave-toolbox-version-1/k-Wave')
 addpath('E:/Necleotide Codes/k-wave-toolbox-version-1/k-Wave');
 
 % Clear any existing parallel pools
@@ -8,8 +10,8 @@ if ~isempty(poolobj)
 end
 
 % Enable parallel computation
-bool_parallel_computation = true;
-if bool_parallel_computation
+bool_parallel_computation = false;
+if bool_parallel_computation == true
     parpool('local'); % Comment out to disable parallel computation
 end
 
@@ -56,6 +58,7 @@ input_args = {'PMLInside', false, ...
               'PlotPML', false, ...
               'DataCast', 'gpuArray-single'};  % Use GPU for faster computation
 
+
 % Generate system matrix with parallel computation
 bool_generate_system_matrix = true;
 bool_save_system_matrix_k = true;
@@ -64,14 +67,39 @@ if bool_generate_system_matrix
     K = cell(x_length * prism_z_length, 1);  % Preallocate cell array
     
     % Use parallel for loop to speed up the computation
-    parfor idx = 1:(x_length * prism_z_length)
-        [x, z] = ind2sub([x_length, prism_z_length], idx);
-        % Define source within parfor loop
-        source = struct();
-        source.p0 = zeros(Nx, Ny, Nz);
-        source.p0(x, 1, z) = 1;
-        sensor_data_sys_matrix = kspaceFirstOrder3D(kgrid, medium, source, sensor, input_args{:});
-        K{idx} = gather(sensor_data_sys_matrix);  % Gather results from GPU to CPU
+    if bool_parallel_computation == true
+
+        input_args = {'PMLInside', false, ...
+              'PMLSize', [0, 0], ...
+              'PMLAlpha', 0, ...  % Disable PML by setting PMLAlpha to 0
+              'Smooth', false, ...
+              'PlotPML', false, ...
+              'DataCast', 'gpuArray-single'};  % Use GPU for faster computation
+
+        parfor idx = 1:(x_length * prism_z_length)
+            [x, z] = ind2sub([x_length, prism_z_length], idx);
+            % Define source within parfor loop
+            source = struct();
+            source.p0 = zeros(Nx, Ny, Nz);
+            source.p0(x, 1, z) = 1;
+            sensor_data_sys_matrix = kspaceFirstOrder3D(kgrid, medium, source, sensor, input_args{:});
+            K{idx} = gather(sensor_data_sys_matrix);  % Gather results from GPU to CPU
+        end
+    else
+        input_args = {'PMLInside', false, ...
+              'PMLSize', [0, 0], ...
+              'PMLAlpha', 0, ...  % Disable PML by setting PMLAlpha to 0
+              'Smooth', false, ...
+              'PlotPML', false, ...
+              'DataCast', 'single'};
+              
+        for idx = 1:(x_length * prism_z_length)
+            [x, z] = ind2sub([x_length, prism_z_length], idx);
+            source.p0 = zeros(Nx, Ny, Nz);
+            source.p0(x, 1, z) = 1;
+            sensor_data_sys_matrix = kspaceFirstOrder3D(kgrid, medium, source, sensor, input_args{:});
+            K{idx} = gather(sensor_data_sys_matrix);
+        end
     end
 
     if bool_save_system_matrix_k
