@@ -1,6 +1,6 @@
 clear
 
-addpath('/Users/nontakornbunluesriruang/Downloads/k-wave-toolbox-version-1/k-Wave')
+addpath('E:/Necleotide Codes/k-wave-toolbox-version-1/k-Wave');
 
 % Set up the computational grid
 Nx = 200;   % number of grid points in the x direction
