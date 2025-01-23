@@ -6,8 +6,10 @@ int servo_x_axis_pin = 9;
 int servo_y_axis_pin = 10;
 float pos_x = 0;  //home
 float pos_y = 0;
-#define forward_90_per_second 40
-#define backward_90_per_second 140
+int laser_operation_frq = 1;
+// #define forward_90_per_second 40
+// #define backward_90_per_second 140
+
 
 /*
 servo settings
@@ -47,16 +49,13 @@ void activate_laser(int activation) {
 
 
 String msg;
-const String commands[6] = { "FIREL0", "FIREL1", "LED_BUILTIN1", "LED_BUILTIN0", "MOVE", "HOME" };
+const String commands[8] = { "FIREL0", "FIREL1", "LED_BUILTIN1", "LED_BUILTIN0", "MOVE", "HOME", "1000", "FIREL000"};
 
+
+#define forward_90_per_second 40
+#define backward_90_per_second 140
 
 void loop() {
-  // digitalWrite(5, HIGH);
-  // delay(1000);
-  // digitalWrite(5, LOW);
-  // delay(1000);
-
-
   while (Serial.available()) {
 
     msg = Serial.readStringUntil('\n');
@@ -77,24 +76,60 @@ void loop() {
     if (msg == commands[0]) {
       activate_laser(LOW);
     } 
+
     else if (msg == commands[1]) {
       activate_laser(HIGH);
     } 
+
+
     else if (msg == commands[2]) { // LED_on
       digitalWrite(LED_BUILTIN, HIGH);
       Serial.println("LED_BUILTIN_on");
     } 
+
+
     else if (msg == commands[3]) { // LED_off
       digitalWrite(LED_BUILTIN, LOW);
       Serial.println("LED_BUILTIN_off");
     } 
+
+
     else if (msg_split[0] == commands[4]){ // MOVE Gantry
       move_position(msg_split[1].toFloat(), msg_split[2].toFloat());
       Serial.println("MOVED TO POSITION");
     }
+
+
     else if (msg == commands[5]){ // home
       pos_x = 0; pos_y = 0;
       Serial.println("SETHOME");
+    }
+
+
+
+    // 1000 DURATION_UNTIL_RETURN  SPEED // test for servo rotation rate
+    else if (msg_split[0] == commands[6]){ 
+      Serial.println("MOVE 1000ms");
+      int speed = msg_split[2].toInt();
+      int reverse_speed = (90-speed) + 90;
+      servo_x_axis.attach(servo_x_axis_pin);
+      servo_x_axis.write(speed);
+      delay(1000);
+      servo_x_axis.write(90);
+      delay(msg_split[1].toInt());
+
+      servo_x_axis.write(reverse_speed);
+      delay(1000);
+      servo_x_axis.write(90);
+      servo_x_axis.detach();
+    }
+    
+    else if (msg == commands[7]){
+      Serial.println("FIRE ONCE");
+      activate_laser(HIGH);
+      delay(1000); // startup
+      delay((1/laser_operation_frq) * 1000);
+      activate_laser(LOW);
     }
 
 
