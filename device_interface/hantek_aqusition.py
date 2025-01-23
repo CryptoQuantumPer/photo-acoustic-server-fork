@@ -86,7 +86,7 @@ class ControlData(ctypes.Structure):
 # Create an instance of ControlData and populate it based on your C++ example
 control_data = ControlData()
 control_data.nCHSet = 0x0F  # Enable all four channels (CH1, CH2, CH3, CH4)
-control_data.nTimeDIV = 19   # Example time base index
+control_data.nTimeDIV = 7   # Example time base index
 control_data.nTriggerSource = 0  # CH1 as the trigger source
 control_data.nHTriggerPos = 50   # Horizontal trigger position: 50%
 control_data.nVTriggerPos = 64   # Vertical trigger position
@@ -128,10 +128,10 @@ relay_control.bCHEnable[2] = False  # Disable CH3
 relay_control.bCHEnable[3] = False  # Disable CH4
 
 # Set voltage divisions for each channel
-relay_control.nCHVoltDIV[0] = 5
-relay_control.nCHVoltDIV[1] = 5
-relay_control.nCHVoltDIV[2] = 10
-relay_control.nCHVoltDIV[3] = 10
+relay_control.nCHVoltDIV[0] = 8
+relay_control.nCHVoltDIV[1] = 8
+relay_control.nCHVoltDIV[2] = 8
+relay_control.nCHVoltDIV[3] = 8
 
 # Set channel coupling (0: DC, 1: AC, 2: GND)
 relay_control.nCHCoupling[0] = 1
@@ -162,7 +162,7 @@ else: print('FAIL: dsoHTSetCHAndTrigger')
 # dsoHTSetSampleRate
 ht_hard_dll.dsoHTSetSampleRate.argtypes = [c_uint16, c_uint16, POINTER(RelayControl), PCONTROLDATA]
 ht_hard_dll.dsoHTSetSampleRate.restype = c_uint16
-nYTFormat = 1 # Horizontal format. 0: Normal, 1: Scan-scan for signal, 2:Roll.
+nYTFormat = 7 # Horizontal format. 0: Normal, 1: Scan-scan for signal, 2:Roll.
 dsoHTSetSampleRate_return = ht_hard_dll.dsoHTSetSampleRate(device_index, nYTFormat, ctypes.byref(relay_control), ctypes.byref(control_data))
 if dsoHTSetSampleRate_return != 0: print(f'dsoHTSetSampleRate Relay control of dv{device_index} succeed')
 else: print('FAIL: dsoHTSetSampleRate')
