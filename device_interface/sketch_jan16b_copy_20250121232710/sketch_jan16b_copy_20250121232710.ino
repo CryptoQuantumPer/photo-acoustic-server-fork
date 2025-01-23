@@ -7,8 +7,8 @@ int servo_y_axis_pin = 10;
 float pos_x = 0;  //home
 float pos_y = 0;
 int laser_operation_frq = 1;
-// #define forward_90_per_second 40
-// #define backward_90_per_second 140
+#define forward_90_per_second 40
+#define backward_90_per_second 140
 
 
 /*
@@ -50,10 +50,6 @@ void activate_laser(int activation) {
 
 String msg;
 const String commands[8] = { "FIREL0", "FIREL1", "LED_BUILTIN1", "LED_BUILTIN0", "MOVE", "HOME", "1000", "FIREL000"};
-
-
-#define forward_90_per_second 40
-#define backward_90_per_second 140
 
 void loop() {
   while (Serial.available()) {
@@ -180,6 +176,7 @@ void move_position(float x, float y) {
 
   if (x < pos_x) {
     servo_x_axis.write(forward_90_per_second);
+    Serial.println("forward");
     delay(x_time);
     servo_x_axis.write(90);  //stop
   } else if (x > pos_x) {
@@ -190,6 +187,7 @@ void move_position(float x, float y) {
 
   if (y < pos_y) {
     servo_y_axis.write(forward_90_per_second);
+    Serial.println("forward");
     delay(y_time);
     servo_y_axis.write(90);  //stop
   } else if (y > pos_y) {
