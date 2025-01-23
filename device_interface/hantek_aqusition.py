@@ -2,6 +2,7 @@ import ctypes
 from ctypes import c_short, POINTER, c_uint, c_uint16, c_uint32, c_bool
 import os, time
 import platform
+import matplotlib.pyplot as plt
 
 dll_x64_path = os.path.join(os.getcwd(), 'device_interface', 'HT6004BX_SDK', 'DLL', 'x64')
 ht_hard_dll = ctypes.WinDLL(os.path.join(dll_x64_path, 'HTHardDll.dll'))
@@ -80,13 +81,13 @@ class ControlData(ctypes.Structure):
         ("nReadDataLen", c_uint32),      # Length of data to be read
         ("nAlreadyReadLen", c_uint32),   # Length of data already read
         ("nALT", c_uint16),              # Alternate trigger (0: off, 1: on)
-        ("nFPGAVersion", c_uint16),      # FPGA version
+        ("nETSOpen", c_uint16),      # FPGA version
     ]
 
 # Create an instance of ControlData and populate it based on your C++ example
 control_data = ControlData()
 control_data.nCHSet = 0x0F  # Enable all four channels (CH1, CH2, CH3, CH4)
-control_data.nTimeDIV = 7   # Example time base index
+control_data.nTimeDIV = 19   # Example time base index
 control_data.nTriggerSource = 0  # CH1 as the trigger source
 control_data.nHTriggerPos = 50   # Horizontal trigger position: 50%
 control_data.nVTriggerPos = 64   # Vertical trigger position
@@ -95,14 +96,14 @@ control_data.nBufferLen = 4096   # Buffer length (4K)
 control_data.nReadDataLen = 4096  # Data length to be read (4K)
 control_data.nAlreadyReadLen = 4096  # No data has been read yet
 control_data.nALT = 0  # Alternate trigger off
-control_data.nFPGAVersion = 0xA000  # Example FPGA version (from your C++ code)
+control_data.nETSOpen = False
 
 PCONTROLDATA = POINTER(ControlData)
 
-nCHMod = 1 # Channel mode (1,2,4)
-dsoHTSetHTriggerLength_return = ht_hard_dll.dsoHTSetHTriggerLength(device_index, ctypes.byref(control_data), nCHMod)
-if dsoHTSetHTriggerLength_return != 0: print(f'dsoHTSetHTriggerLength of dv{device_index} succeed')
-else: print('FAIL: dsoHTSetHTriggerLength')
+# nCHMod = 1 # Channel mode (1,2,4)
+# dsoHTSetHTriggerLength_return = ht_hard_dll.dsoHTSetHTriggerLength(device_index, ctypes.byref(control_data), nCHMod)
+# if dsoHTSetHTriggerLength_return != 0: print(f'dsoHTSetHTriggerLength of dv{device_index} succeed')
+# else: print('FAIL: dsoHTSetHTriggerLength')
 
 
 
@@ -122,94 +123,94 @@ relay_control = RelayControl()
 
 # // Configure each field:
 # Enable channels CH1 and CH2, disable CH3 and CH4
-relay_control.bCHEnable[0] = True   # Enable CH1
-relay_control.bCHEnable[1] = True   # Enable CH2
-relay_control.bCHEnable[2] = False  # Disable CH3
-relay_control.bCHEnable[3] = False  # Disable CH4
+# relay_control.bCHEnable[0] = True   # Enable CH1
+# relay_control.bCHEnable[1] = False   # Enable CH2
+# relay_control.bCHEnable[2] = False  # Disable CH3
+# relay_control.bCHEnable[3] = False  # Disable CH4
 
-# Set voltage divisions for each channel
-relay_control.nCHVoltDIV[0] = 8
-relay_control.nCHVoltDIV[1] = 8
-relay_control.nCHVoltDIV[2] = 8
-relay_control.nCHVoltDIV[3] = 8
+# # Set voltage divisions for each channel
+# relay_control.nCHVoltDIV[0] = 5
+# relay_control.nCHVoltDIV[1] = 0
+# relay_control.nCHVoltDIV[2] = 0
+# relay_control.nCHVoltDIV[3] = 0
 
-# Set channel coupling (0: DC, 1: AC, 2: GND)
-relay_control.nCHCoupling[0] = 1
-relay_control.nCHCoupling[1] = 1
-relay_control.nCHCoupling[2] = 1
-relay_control.nCHCoupling[3] = 1
+# # Set channel coupling (0: DC, 1: AC, 2: GND)
+# relay_control.nCHCoupling[0] = 1
+# relay_control.nCHCoupling[1] = 1
+# relay_control.nCHCoupling[2] = 1
+# relay_control.nCHCoupling[3] = 1
 
-# Set bandwidth limit (1: ON, 0: OFF)
-relay_control.bCHBWLimit[0] = False
-relay_control.bCHBWLimit[1] = False
-relay_control.bCHBWLimit[2] = False
-relay_control.bCHBWLimit[3] = False
+# # Set bandwidth limit (1: ON, 0: OFF)
+# relay_control.bCHBWLimit[0] = False
+# relay_control.bCHBWLimit[1] = False
+# relay_control.bCHBWLimit[2] = False
+# relay_control.bCHBWLimit[3] = False
 
-relay_control.nTrigSource = 0  # Trigger on CH1 # Set the trigger source to CH1
-relay_control.bTrigFilt = True  # Enable high frequency rejection filter - high frequency rejection filter (1: ON, 0: OFF)
-relay_control.nALT = 0  # No alternate triggering Set alternate trigger (1: alternate, 0: non-alternate)
-
-
-ht_hard_dll.dsoHTSetCHAndTrigger.argtypes = [c_uint16, POINTER(RelayControl), c_uint16]
-ht_hard_dll.dsoHTSetCHAndTrigger.restype = c_uint16
-nTimeDIV = 19 
-dsoHTSetCHAndTrigger_return = ht_hard_dll.dsoHTSetCHAndTrigger(device_index, ctypes.byref(relay_control), nTimeDIV)
-if dsoHTSetCHAndTrigger_return != 0: print(f'dsoHTSetCHAndTrigger Relay control of dv{device_index} succeed')
-else: print('FAIL: dsoHTSetCHAndTrigger')
+# relay_control.nTrigSource = 0  # Trigger on CH1 # Set the trigger source to CH1
+# relay_control.bTrigFilt = True  # Enable high frequency rejection filter - high frequency rejection filter (1: ON, 0: OFF)
+# relay_control.nALT = 0  # No alternate triggering Set alternate trigger (1: alternate, 0: non-alternate)
 
 
-
-# dsoHTSetSampleRate
-ht_hard_dll.dsoHTSetSampleRate.argtypes = [c_uint16, c_uint16, POINTER(RelayControl), PCONTROLDATA]
-ht_hard_dll.dsoHTSetSampleRate.restype = c_uint16
-nYTFormat = 7 # Horizontal format. 0: Normal, 1: Scan-scan for signal, 2:Roll.
-dsoHTSetSampleRate_return = ht_hard_dll.dsoHTSetSampleRate(device_index, nYTFormat, ctypes.byref(relay_control), ctypes.byref(control_data))
-if dsoHTSetSampleRate_return != 0: print(f'dsoHTSetSampleRate Relay control of dv{device_index} succeed')
-else: print('FAIL: dsoHTSetSampleRate')
-
-# dsoHTStartCollectData
-ht_hard_dll.dsoHTStartCollectData.argtypes = [c_uint, c_uint16]
-ht_hard_dll.dsoHTStartCollectData.restype = c_uint 
-nStartContorl = 0b000 #0b000, 0b001, 0b010, 0b011, 0b101 correspond to the number 0,1,2,3,4,5 ; AUTO Triger, ROLL, Stop After Collection, AUTO Trigger + Stop After Collection, ROLL Mode + Stop After Collection
-dsoHTStartCollectData_return = ht_hard_dll.dsoHTStartCollectData(device_index, nStartContorl) 
-if dsoHTStartCollectData_return != 0: print(f'dsoHTStartCollectData Relay control of dv{device_index} succeed')
-else: print('FAIL: dsoHTStartCollectData')
-
-
-# dsoHTGetState
-# Get state of collection; function returns 2 bits; bit 0 if collection triggers 0 bit is 1; bit 1 turns into 1 when finish collection 
-ht_hard_dll.dsoHTGetState.argtypes = [c_uint16]
-ht_hard_dll.dsoHTGetState.restype = c_uint
-dsoHTGetState_return = ht_hard_dll.dsoHTGetState(device_index)
-binary_representation_16bit = format(dsoHTGetState_return, '08b')
-
-triggered_state = dsoHTGetState_return & 0b1
-state_of_collection = (dsoHTGetState_return >> 1) & 0b1
-if binary_representation_16bit[0] == '1': print(f'data collection of dv{device_index} triggered')
-else: print(f'Caution : dsoHTGetState of dv{device_index} has not been triggered, {binary_representation_16bit} state')
-if binary_representation_16bit[1] == '1': print(f'data collection of dv{device_index} is finished ')
-else: print(f'Caution : dsoHTGetState of dv{device_index} is not done!! please be patient {binary_representation_16bit} state')
-
-
-# dsoHTGetData
-control_data.nReadDataLen = 4096
-ht_hard_dll.dsoHTGetRollData.argtypes = [c_uint16, POINTER(c_uint16), POINTER(c_uint16), POINTER(c_uint16), POINTER(c_uint16), POINTER(ControlData)]
-ht_hard_dll.dsoHTGetRollData.restype = c_uint
-pCH1DATA, pCH2DATA, pCH3DATA, pCH4DATA = (c_uint16 * 4096)(), (c_uint16 * 4096)(), (c_uint16 * 4096)(), (c_uint16 * 4096)()
-dsoHTGetRollData_return = ht_hard_dll.dsoHTGetRollData(device_index, pCH1DATA, pCH2DATA, pCH3DATA, pCH4DATA, ctypes.byref(control_data))
-if dsoHTGetRollData_return != 0: print(f'dsoHTGetRollData get data of dv{device_index} succeed')
-else: print(f'FAIL: dsoHTGetRollData data retrieval ; returned {dsoHTGetRollData_return}')
-# print(f'print whether the returned data is the same for CH1 : {bool(list(pCH1DATA) == list((c_uint16 * 4096)))}')
+# ht_hard_dll.dsoHTSetCHAndTrigger.argtypes = [c_uint16, POINTER(RelayControl), c_uint16]
+# ht_hard_dll.dsoHTSetCHAndTrigger.restype = c_uint16
+# nTimeDIV = 19 
+# dsoHTSetCHAndTrigger_return = ht_hard_dll.dsoHTSetCHAndTrigger(device_index, ctypes.byref(relay_control), nTimeDIV)
+# if dsoHTSetCHAndTrigger_return != 0: print(f'dsoHTSetCHAndTrigger Relay control of dv{device_index} succeed')
+# else: print('FAIL: dsoHTSetCHAndTrigger')
 
 
 
+# # dsoHTSetSampleRate
+# ht_hard_dll.dsoHTSetSampleRate.argtypes = [c_uint16, c_uint16, POINTER(RelayControl), PCONTROLDATA]
+# ht_hard_dll.dsoHTSetSampleRate.restype = c_uint16
+# nYTFormat = 1 # Horizontal format. 0: Normal, 1: Scan-scan for signal, 2:Roll.
+# dsoHTSetSampleRate_return = ht_hard_dll.dsoHTSetSampleRate(device_index, nYTFormat, ctypes.byref(relay_control), ctypes.byref(control_data))
+# if dsoHTSetSampleRate_return != 0: print(f'dsoHTSetSampleRate Relay control of dv{device_index} succeed')
+# else: print('FAIL: dsoHTSetSampleRate')
+
+# # dsoHTStartCollectData
+# ht_hard_dll.dsoHTStartCollectData.argtypes = [c_uint, c_uint16]
+# ht_hard_dll.dsoHTStartCollectData.restype = c_uint 
+# nStartContorl = 0b000 #0b000, 0b001, 0b010, 0b011, 0b101 correspond to the number 0,1,2,3,4,5 ; AUTO Triger, ROLL, Stop After Collection, AUTO Trigger + Stop After Collection, ROLL Mode + Stop After Collection
+# dsoHTStartCollectData_return = ht_hard_dll.dsoHTStartCollectData(device_index, nStartContorl) 
+# if dsoHTStartCollectData_return != 0: print(f'dsoHTStartCollectData Relay control of dv{device_index} succeed')
+# else: print('FAIL: dsoHTStartCollectData')
 
 
-import matplotlib.pyplot as plt
-return_data = [pCH1DATA, pCH2DATA, pCH3DATA, pCH4DATA]
+# # dsoHTGetState
+# # Get state of collection; function returns 2 bits; bit 0 if collection triggers 0 bit is 1; bit 1 turns into 1 when finish collection 
+# ht_hard_dll.dsoHTGetState.argtypes = [c_uint16]
+# ht_hard_dll.dsoHTGetState.restype = c_uint
+# dsoHTGetState_return = ht_hard_dll.dsoHTGetState(device_index)
+# binary_representation_16bit = format(dsoHTGetState_return, '08b')
 
-plt.plot(return_data[0])
-plt.show()
+# triggered_state = dsoHTGetState_return & 0b1
+# state_of_collection = (dsoHTGetState_return >> 1) & 0b1
+# if binary_representation_16bit[0] == '1': print(f'data collection of dv{device_index} triggered')
+# else: print(f'Caution : dsoHTGetState of dv{device_index} has not been triggered, {binary_representation_16bit} state')
+# if binary_representation_16bit[1] == '1': print(f'data collection of dv{device_index} is finished ')
+# else: print(f'Caution : dsoHTGetState of dv{device_index} is not done!! please be patient {binary_representation_16bit} state')
+
+
+# # dsoHTGetData
+# control_data.nReadDataLen = 4096
+# ht_hard_dll.dsoHTGetRollData.argtypes = [c_uint16, POINTER(c_uint16), POINTER(c_uint16), POINTER(c_uint16), POINTER(c_uint16), POINTER(ControlData)]
+# ht_hard_dll.dsoHTGetRollData.restype = c_uint
+# pCH1DATA, pCH2DATA, pCH3DATA, pCH4DATA = (c_uint16 * 4096)(), (c_uint16 * 4096)(), (c_uint16 * 4096)(), (c_uint16 * 4096)()
+# dsoHTGetRollData_return = ht_hard_dll.dsoHTGetRollData(device_index, pCH1DATA, pCH2DATA, pCH3DATA, pCH4DATA, ctypes.byref(control_data))
+# if dsoHTGetRollData_return != 0: print(f'dsoHTGetRollData get data of dv{device_index} succeed')
+# else: print(f'FAIL: dsoHTGetRollData data retrieval ; returned {dsoHTGetRollData_return}')
+# # print(f'print whether the returned data is the same for CH1 : {bool(list(pCH1DATA) == list((c_uint16 * 4096)))}')
+
+
+
+
+
+# import matplotlib.pyplot as plt
+# return_data = [pCH1DATA, pCH2DATA, pCH3DATA, pCH4DATA]
+
+# plt.plot(return_data[0])
+# plt.show()
 
 # for i in range(len(return_data)):
 #     plt.plot(list(return_data)[i])
@@ -230,3 +231,132 @@ plt.show()
 
 
 # print(list(pCH1DATA))
+
+
+
+# initilization flow chart:
+# dsoSetUSBBus >> dsoInitHard >> dsoHTADCCHModGain >> dsoHTReadCalibrationData >> 
+# settings :
+# >> dsoHTSetSampleRate >> dsoHTSetCHAndTrigger >> dsoHTSetRamAndTrigerControl >> dsoHTSetCHPos >> dsoHTSetVTriggerLevel >> dsoHTSetTrigerModer
+
+# collection
+# dsoHTStartCollectData <- false
+# ________
+# dsoHTGetState x 2
+# ________
+# true -> dsoHTGetData
+# change setting
+
+
+
+def dsoInitHard(device_index):
+    ht_hard_dll.dsoInitHard.argtypes = [c_uint16]
+    ht_hard_dll.dsoInitHard.restype = c_uint
+    state = ht_hard_dll.dsoInitHard(device_index)
+    if state != 0: print(f'dsoInitHard of dv{device_index} succeed')
+    else: print(f'fail dsoInitHard to dv{device_index}')
+    return state
+
+def dsoHTADCCHModGain(device_index, nCHMode):
+    ht_hard_dll.dsoHTADCCHModGain.argtypes = [c_uint16, c_uint16]
+    ht_hard_dll.dsoHTADCCHModGain.restype = c_uint
+    state = ht_hard_dll.dsoHTADCCHModGain(device_index, nCHMode)
+    if state != 0: print(f'dsoHTADCCHModGain of dv{device_index} succeed')
+    else: print(f'fail dsoHTADCCHModGain to dv{device_index}')
+    return state
+
+def dsoHTSetSampleRate(device_index, nYTFormat, RELAYCONTROL, CONTROL):
+    ht_hard_dll.dsoHTSetSampleRate.argtypes = [c_uint16, c_uint16, POINTER(RelayControl), POINTER(ControlData)]
+    ht_hard_dll.dsoHTSetSampleRate.restype = c_uint16
+    state = ht_hard_dll.dsoHTSetSampleRate(device_index, nYTFormat, ctypes.byref(RELAYCONTROL), ctypes.byref(CONTROL))
+    if state != 0: print(f'dsoHTSetSampleRate of dv{device_index} succeed')
+    else: print(f'fail dsoHTSetSampleRate to dv{device_index}')
+    return state
+
+def dsoHTSetCHAndTrigger(device_index, RELAYCONTROL, nTimeDIV):
+    ht_hard_dll.dsoHTSetCHAndTrigger.argtypes = [c_uint16, POINTER(RelayControl), c_uint16]
+    ht_hard_dll.dsoHTSetCHAndTrigger.restype = c_uint16
+    state = ht_hard_dll.dsoHTSetCHAndTrigger(device_index, ctypes.byref(RELAYCONTROL), nTimeDIV)
+    if state != 0: print(f'dsoHTSetCHAndTrigger of dv{device_index} succeed')
+    else: print(f'fail dsoHTSetCHAndTrigger to dv{device_index}')
+    return state
+
+def dsoHTSetRamAndTrigerControl(device_index, nTimeDiv, nCHset, nTrigerSource, nPeak):
+    ht_hard_dll.dsoHTSetRamAndTrigerControl.argtypes = [c_uint16, c_uint16, c_uint16, c_uint16, c_uint16]
+    ht_hard_dll.dsoHTSetRamAndTrigerControl.restype = c_uint16
+    state = ht_hard_dll.dsoHTSetRamAndTrigerControl(device_index, nTimeDiv, nCHset, nTrigerSource, nPeak)
+    if state != 0: print(f'dsoHTSetRamAndTrigerControl of dv{device_index} succeed')
+    else: print(f'fail dsoHTSetRamAndTrigerControl to dv{device_index}')
+    return state
+
+def dsoHTSetCHPos(device_index, nVoltDIV, nPos, nCH, nCHMode):
+    ht_hard_dll.dsoHTSetCHPos.argtypes = [c_uint16, c_uint16, c_uint16, c_uint16, c_uint16]
+    ht_hard_dll.dsoHTSetCHPos.restype = c_uint16
+    state = ht_hard_dll.dsoHTSetCHPos(device_index, nVoltDIV, nPos, nCH, nCHMode)
+    if state != 0: print(f'dsoHTSetCHPos of dv{device_index} succeed')
+    else: print(f'fail dsoHTSetCHPos to dv{device_index}')
+    return state
+
+def dsoHTSetVTriggerLevel(device_index, nPos, nSensitivity):
+    ht_hard_dll.dsoHTSetVTriggerLevel.argtypes = [c_uint16, c_uint16, c_uint16]
+    ht_hard_dll.dsoHTSetVTriggerLevel.restype = c_uint16
+    state = ht_hard_dll.dsoHTSetVTriggerLevel(device_index, nPos, nSensitivity)
+    if state != 0: print(f'dsoHTSetVTriggerLevel of dv{device_index} succeed')
+    else: print(f'fail dsoHTSetVTriggerLevel to dv{device_index}')
+    return state
+
+def dsoHTSetTrigerMode(device_index, nTriggerMode, nTriggerSlop, nTriggerCouple):
+    ht_hard_dll.dsoHTSetTrigerMode.argtypes = [c_uint16, c_uint16, c_uint16, c_uint16]
+    ht_hard_dll.dsoHTSetTrigerMode.restype = c_uint16
+    state = ht_hard_dll.dsoHTSetTrigerMode(device_index, nTriggerMode, nTriggerSlop, nTriggerCouple)
+    if state != 0: print(f'dsoHTSetTrigerMode of dv{device_index} succeed')
+    else: print(f'fail dsoHTSetTrigerMode to dv{device_index}')
+    return state
+
+def dsoHTStartCollectData(device_index, nStartControl):
+    ht_hard_dll.dsoHTStartCollectData.argtypes = [c_uint16, c_uint16]
+    ht_hard_dll.dsoHTStartCollectData.restype = c_uint
+    state = ht_hard_dll.dsoHTStartCollectData(device_index, nStartControl)
+    if state != 0: print(f'dsoHTStartCollectData of dv{device_index} succeed')
+    else: print(f'fail dsoHTStartCollectData to dv{device_index}')
+    return state
+
+def dsoHTGetState(device_index):
+    ht_hard_dll.dsoHTGetState.argtypes = [c_uint16]
+    ht_hard_dll.dsoHTGetState.restype = c_uint
+    state = ht_hard_dll.dsoHTGetState(device_index)
+    if state != 0: print(f'dsoHTGetState:data collection of dv{device_index} succeed')
+    else: print(f'fail dsoHTGetState of dv{device_index}')
+    return state
+
+def dsoHTGetData(device_index, pCH1Data_buffer, pCH2Data_buffer, pCH3Data_buffer, pCH4Data_buffer, CONTROL):
+    ht_hard_dll.dsoHTGetRollData.argtypes = [c_uint16, POINTER(c_uint16), POINTER(c_uint16), POINTER(c_uint16), POINTER(c_uint16), POINTER(ControlData)]
+    ht_hard_dll.dsoHTGetRollData.restype = c_uint
+    state = ht_hard_dll.dsoHTGetRollData(device_index, pCH1Data_buffer, pCH2Data_buffer, pCH3Data_buffer, pCH4Data_buffer, ctypes.byref(CONTROL))
+    if state != 0: print(f'dsoHTGetRollData get data of dv{device_index} succeed')
+    else: print(f'FAIL: dsoHTGetRollData data retrieval ; returned {state}')
+    return state
+
+
+
+search_device()
+connect_device(device_index)
+dsoInitHard(device_index)
+dsoHTADCCHModGain(device_index, nCHMode= 4)
+dsoHTSetSampleRate(device_index, nYTFormat=1, RELAYCONTROL=relay_control, CONTROL=control_data)
+dsoHTSetCHAndTrigger(device_index, RELAYCONTROL= relay_control, nTimeDIV=19)
+dsoHTSetRamAndTrigerControl(device_index, nTimeDiv=19, nCHset=0, nTrigerSource=0, nPeak=0)
+dsoHTSetCHPos(device_index, nVoltDIV=6, nPos=128, nCH=0, nCHMode=4)
+dsoHTSetVTriggerLevel(device_index, nPos=128, nSensitivity=1)
+dsoHTSetTrigerMode(device_index, nTriggerMode=0, nTriggerSlop=0, nTriggerCouple=0)
+
+
+
+while True:
+    dsoHTStartCollectData(device_index, nStartControl=0)
+    if dsoHTGetState(device_index): 
+        pCH1DATA, pCH2DATA, pCH3DATA, pCH4DATA = (c_uint16 * 4096)(), (c_uint16 * 4096)(), (c_uint16 * 4096)(), (c_uint16 * 4096)()
+        dsoHTGetData(device_index, pCH1DATA, pCH2DATA, pCH3DATA, pCH4DATA, control_data)
+        plt.plot(pCH1DATA)
+        plt.show()
+
