@@ -9,8 +9,11 @@ int photo_diode_a = 0;
 float pos_x = 0;  //home
 float pos_y = 0;
 int laser_operation_frq = 1;
-#define forward_90_per_second 40
-#define backward_90_per_second 140
+// #define forward_90_per_second 40
+// #define backward_90_per_second 140
+
+#define forward_90_per_second  65
+#define backward_90_per_second 115
 
 
 /*
@@ -148,14 +151,13 @@ void loop() {
   // --------periperal operations---------
   int photo_readout = analogRead(photo_diode_a);
   while (photo_readout >= 1000){
-    digitalWrite(hantek_sig_pin, HIGH);
+    
     Serial.print("PEAK ");Serial.println(photo_readout);
     photo_readout = analogRead(photo_diode_a);
+    digitalWrite(hantek_sig_pin, HIGH);
   }
   digitalWrite(hantek_sig_pin, LOW);
-
 }
-
 
 
 
@@ -185,10 +187,10 @@ void move_position(float x, float y) {
 
   // response
   if (diviation_x_axis != 0 || diviation_y_axis != 0){
-    Serial.write("diviation"); Serial.write(" ");Serial.write(diviation_x_axis); Serial.write(" "); Serial.write(diviation_y_axis); Serial.println();
+    Serial.write("diviation"); Serial.write(" ");Serial.print(diviation_x_axis, 5); Serial.write(" "); Serial.print(diviation_y_axis, 5); Serial.println();
   }
   if (x_time != 0 || y_time != 0){
-    Serial.print("time: "); Serial.print(x_time); Serial.print(" "); Serial.println(y_time);
+    Serial.print("time: "); Serial.print(x_time, 5); Serial.print(" "); Serial.println(y_time, 5);
   }
 
   if (x < pos_x) {
@@ -217,7 +219,7 @@ void move_position(float x, float y) {
   // update current position
   pos_x = x;
   pos_y = y;
-  Serial.print(pos_x); Serial.println(pos_y); // print current position
+  Serial.print(pos_x, 2); Serial.print(" "); Serial.println(pos_y, 2); // print current position
   servo_x_axis.detach();
   servo_y_axis.detach();
 }
