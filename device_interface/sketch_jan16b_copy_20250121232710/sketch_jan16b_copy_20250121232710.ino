@@ -4,11 +4,16 @@ Servo servo_y_axis;
 int laser_relay_pin = 5;
 int servo_x_axis_pin = 9;
 int servo_y_axis_pin = 10;
+int hantek_sig_pin = 8;
+int photo_diode_a = 0;
 float pos_x = 0;  //home
 float pos_y = 0;
 int laser_operation_frq = 1;
-#define forward_90_per_second 40
-#define backward_90_per_second 140
+// #define forward_90_per_second 40
+// #define backward_90_per_second 140
+
+#define forward_90_per_second  65
+#define backward_90_per_second 115
 
 
 /*
@@ -26,6 +31,7 @@ void setup() {
   Serial.begin(115600);
   Serial.setTimeout(1);
 
+  pinMode(hantek_sig_pin, OUTPUT);
   pinMode(laser_relay_pin, OUTPUT);
   pinMode(servo_x_axis_pin, OUTPUT);
   pinMode(servo_y_axis_pin, OUTPUT);
@@ -49,7 +55,7 @@ void activate_laser(int activation) {
 
 
 String msg;
-const String commands[8] = { "FIREL0", "FIREL1", "LED_BUILTIN1", "LED_BUILTIN0", "MOVE", "HOME", "1000", "FIREL000"};
+const String commands[9] = { "FIREL0", "FIREL1", "LED_BUILTIN1", "LED_BUILTIN0", "MOVE", "HOME", "1000", "FIREL000", "SET_FRQ"};
 
 void loop() {
   while (Serial.available()) {
@@ -120,12 +126,22 @@ void loop() {
       servo_x_axis.detach();
     }
     
-    else if (msg == commands[7]){
-      Serial.println("FIRE ONCE");
+    else if (msg_split[0] == commands[7]){
+      int fire_cycles = msg_split[1].toInt();
+      Serial.print("FIRE "); Serial.print(fire_cycles); Serial.println(" times");
       activate_laser(HIGH);
-      delay(1000); // startup
-      delay((1/laser_operation_frq) * 1000);
+
+      for (int i = 0; i < fire_cycles; i++){
+        while (analogRead(photo_diode_a) < 1000){} // delay
+        // delay((1/laser_operation_frq) * 1000);
+      }
+
       activate_laser(LOW);
+    }
+    //settings for new laser operating frequency
+    else if (msg_split[0] == commands[8]){
+      laser_operation_frq = msg_split[1].toInt();
+      Serial.print("SET new frequency >> "); Serial.print(laser_operation_frq); Serial.print(" hz"); Serial.println();
     }
 
 
@@ -133,12 +149,15 @@ void loop() {
   }
 
   // --------periperal operations---------
-  int photo_readout = analogRead(0);
-  if (photo_readout >= 1000){
-    Serial.print("photo peak detected ");Serial.println(photo_readout);
+  int photo_readout = analogRead(photo_diode_a);
+  while (photo_readout >= 1000){
+    
+    Serial.print("PEAK ");Serial.println(photo_readout);
+    photo_readout = analogRead(photo_diode_a);
+    digitalWrite(hantek_sig_pin, HIGH);
   }
+  digitalWrite(hantek_sig_pin, LOW);
 }
-
 
 
 
@@ -168,10 +187,10 @@ void move_position(float x, float y) {
 
   // response
   if (diviation_x_axis != 0 || diviation_y_axis != 0){
-    Serial.write("diviation"); Serial.write(" ");Serial.write(diviation_x_axis); Serial.write(" "); Serial.write(diviation_y_axis); Serial.println();
+    Serial.write("diviation"); Serial.write(" ");Serial.print(diviation_x_axis, 5); Serial.write(" "); Serial.print(diviation_y_axis, 5); Serial.println();
   }
   if (x_time != 0 || y_time != 0){
-    Serial.print("time: "); Serial.print(x_time); Serial.print(" "); Serial.println(y_time);
+    Serial.print("time: "); Serial.print(x_time, 5); Serial.print(" "); Serial.println(y_time, 5);
   }
 
   if (x < pos_x) {
@@ -200,8 +219,7 @@ void move_position(float x, float y) {
   // update current position
   pos_x = x;
   pos_y = y;
-  Serial.print(pos_x); Serial.println(pos_y); // print current position
+  Serial.print(pos_x, 2); Serial.print(" "); Serial.println(pos_y, 2); // print current position
   servo_x_axis.detach();
   servo_y_axis.detach();
 }
-
