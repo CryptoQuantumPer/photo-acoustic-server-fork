@@ -100,8 +100,10 @@ class RelayControl(ctypes.Structure):
 
 # Create an instance of ControlData and populate it based on your C++ example
 control_data = ControlData()
-control_data.nCHSet = 1100  # Enable all four channels (CH1, CH2, CH3, CH4)
-control_data.nTimeDIV = 10   # Example time base index
+control_data.nCHSet = 0b1000    # disable all four channels (CH1, CH2, CH3, CH4)
+control_data.nCHSet |= (1 << 0)  # Enable CH1
+control_data.nCHSet |= (1 << 2)  # Enable CH1
+control_data.nTimeDIV = 7   # Example time base index
 control_data.nTriggerSource = 1  # CH2 as the trigger source
 control_data.nHTriggerPos = 0   # Horizontal trigger position: 50%
 control_data.nVTriggerPos = 255   # Vertical trigger position
@@ -116,16 +118,16 @@ control_data.nETSOpen = False
 
 relay_control = RelayControl()
 # Enable channels CH1 and CH2, disable CH3 and CH4
-relay_control.bCHEnable[0] = True   # Enable CH1
-relay_control.bCHEnable[1] = True   # Enable CH2
-relay_control.bCHEnable[2] = True  # Disable CH3
-relay_control.bCHEnable[3] = False  # Disable CH4
+relay_control.bCHEnable[0] = 1   # Enable CH1
+relay_control.bCHEnable[1] = 1   # Enable CH2
+relay_control.bCHEnable[2] = 1  # Disable CH3
+relay_control.bCHEnable[3] = 0  # Disable CH4
 
 # Set voltage divisions for each channel
 relay_control.nCHVoltDIV[0] = 9
 relay_control.nCHVoltDIV[1] = 10
-relay_control.nCHVoltDIV[2] = 0
-relay_control.nCHVoltDIV[3] = 0
+relay_control.nCHVoltDIV[2] = 10
+relay_control.nCHVoltDIV[3] = 10
 
 # Set channel coupling (1: DC, 2: AC, 4: GND)
 relay_control.nCHCoupling[0] = 2
@@ -134,10 +136,10 @@ relay_control.nCHCoupling[2] = 2
 relay_control.nCHCoupling[3] = 2
 
 # Set bandwidth limit (1: ON, 0: OFF)
-relay_control.bCHBWLimit[0] = False
-relay_control.bCHBWLimit[1] = False
-relay_control.bCHBWLimit[2] = False
-relay_control.bCHBWLimit[3] = False
+relay_control.bCHBWLimit[0] = 1
+relay_control.bCHBWLimit[1] = 1
+relay_control.bCHBWLimit[2] = 1
+relay_control.bCHBWLimit[3] = 1
 
 # relay_control.nTrigSource = 0  # Trigger on CH1 # Set the trigger source to CH1
 # relay_control.bTrigFilt = True  # Enable high frequency rejection filter - high frequency rejection filter (1: ON, 0: OFF)
@@ -391,6 +393,7 @@ leonado.rw_string("FIREL000 1")
 continuous_data_CH1 : list = []
 continuous_data_CH2 : list = []
 continuous_data_CH3 : list = []
+continuous_data_CH4 : list = []
 
 # while True:
 for i in range(100):
@@ -401,12 +404,13 @@ for i in range(100):
         continuous_data_CH1.extend(list(pCH1DATA))
         continuous_data_CH2.extend(list(pCH2DATA))
         continuous_data_CH3.extend(list(pCH3DATA))
+        continuous_data_CH4.extend(list(pCH4DATA))
     
  
 
 print("SHOWING COMPLETED DATA")
 
-fig, axes = plt.subplots(nrows=3, ncols=1, figsize=(8, 6), sharex=True)
+fig, axes = plt.subplots(nrows=4, ncols=1, figsize=(8, 6), sharex=True)
 axes[0].plot(continuous_data_CH1)
 axes[0].set_ylim(0, 350)
 axes[0].legend(['ultrasonic data'])
@@ -418,6 +422,10 @@ axes[1].legend(['Laser Firing'])
 axes[2].plot(continuous_data_CH3)
 axes[2].set_ylim(0, 350)
 axes[2].legend(['noise'])
+
+axes[3].plot(continuous_data_CH4)
+axes[3].set_ylim(0, 350)
+axes[3].legend(['noise2'])
 
 plt.show()
 
