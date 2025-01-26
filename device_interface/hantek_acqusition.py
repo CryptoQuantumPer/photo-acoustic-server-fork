@@ -118,7 +118,7 @@ control_data = ControlData()
 control_data.nCHSet = 0b1000    # disable all four channels (CH1, CH2, CH3, CH4)
 control_data.nCHSet |= (1 << 0)  # Enable CH1
 control_data.nCHSet |= (1 << 2)  # Enable CH3
-control_data.nTimeDIV = 5   # Example time base index
+control_data.nTimeDIV = 16    # Example time base index
 control_data.nTriggerSource = 0  # CH2 as the trigger source
 control_data.nHTriggerPos = 0   # Horizontal trigger position: 50%
 control_data.nVTriggerPos = 255   # Vertical trigger position
@@ -138,7 +138,7 @@ relay_control.bCHEnable[2] = 1  # Disable CH3
 relay_control.bCHEnable[3] = 0  # Disable CH4
 
 # Set voltage divisions for each channel
-relay_control.nCHVoltDIV[0] = 1
+relay_control.nCHVoltDIV[0] = 3
 relay_control.nCHVoltDIV[1] = 10
 relay_control.nCHVoltDIV[2] = 10
 relay_control.nCHVoltDIV[3] = 10
@@ -422,7 +422,7 @@ continuous_data_CH4 : list = []
 #         continuous_data_CH4.extend(list(pCH4DATA))
     
 
-while i < 200:
+while i < 100:
     if dsoHTGetState(device_index) != 0:
         pCH1DATA, pCH2DATA, pCH3DATA, pCH4DATA = (c_uint16 * control_data.nBufferLen)(), (c_uint16 * control_data.nBufferLen)(), (c_uint16 * control_data.nBufferLen)(), (c_uint16 * control_data.nBufferLen)()
         # dsoHTGetRollData(device_index, pCH1DATA, pCH2DATA, pCH3DATA, pCH4DATA, control_data)
