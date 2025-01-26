@@ -6,7 +6,8 @@ import time
 
 
 class leonado:
-    serleonado = serial.Serial(port='/dev/cu.usbmodem11401', baudrate=115200, timeout=.1)
+    # serleonado = serial.Serial(port='/dev/cu.usbmodem11401', baudrate=115200, timeout=.1) # mac
+    serleonado = serial.Serial(port='COM18', baudrate=115200, timeout=.1) # windows
     serleonado.timeout = 1
     def rw_string(string, print_response = True):
         string = str(string.strip())
@@ -39,7 +40,7 @@ class operation():
         leonado.rw_string('LED_BLINKIN0')
 
 
-operation.system_matrix_dc()
+# operation.system_matrix_dc()
 
 
 # for i in range(0, 40, 10):

@@ -4,7 +4,7 @@ Servo servo_y_axis;
 int laser_relay_pin = 5;
 int servo_x_axis_pin = 9;
 int servo_y_axis_pin = 10;
-int hantek_sig_pin = 8;
+int hantek_sig_pin = 6;
 int photo_diode_a = 0;
 float pos_x = 0;  //home
 float pos_y = 0;
@@ -133,9 +133,11 @@ void loop() {
 
       for (int i = 0; i < fire_cycles; i++){
         while (analogRead(photo_diode_a) < 1000){} // delay
+        // digitalWrite(hantek_sig_pin, HIGH);
+        // delay(100);
         // delay((1/laser_operation_frq) * 1000);
       }
-
+      // digitalWrite(hantek_sig_pin, LOW);
       activate_laser(LOW);
     }
     //settings for new laser operating frequency
@@ -151,10 +153,10 @@ void loop() {
   // --------periperal operations---------
   int photo_readout = analogRead(photo_diode_a);
   while (photo_readout >= 1000){
-    
     Serial.print("PEAK ");Serial.println(photo_readout);
     photo_readout = analogRead(photo_diode_a);
     digitalWrite(hantek_sig_pin, HIGH);
+    delay(100);
   }
   digitalWrite(hantek_sig_pin, LOW);
 }
