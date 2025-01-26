@@ -156,7 +156,7 @@ void loop() {
     Serial.print("PEAK ");Serial.println(photo_readout);
     photo_readout = analogRead(photo_diode_a);
     digitalWrite(hantek_sig_pin, HIGH);
-    delay(100);
+    delay(10);
   }
   digitalWrite(hantek_sig_pin, LOW);
 }
