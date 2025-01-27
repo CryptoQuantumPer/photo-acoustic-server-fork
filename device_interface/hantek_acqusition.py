@@ -138,7 +138,7 @@ relay_control.bCHEnable[2] = 1  # Disable CH3
 relay_control.bCHEnable[3] = 0  # Disable CH4
 
 # Set voltage divisions for each channel
-relay_control.nCHVoltDIV[0] = 3
+relay_control.nCHVoltDIV[0] = 6
 relay_control.nCHVoltDIV[1] = 10
 relay_control.nCHVoltDIV[2] = 10
 relay_control.nCHVoltDIV[3] = 10
@@ -487,10 +487,15 @@ plt.show()
 
 from scipy.io import savemat, loadmat
 import numpy as np
-# data_mat_origin = loadmat('device_interface/data.mat')
+import json
 
-# data_mat_origin['ultrasound'] = np.append(data_mat_origin['ultrasound'], continuous_data_CH1)
-# data_mat_origin['signal'] = np.append(data_mat_origin['signal'], continuous_data_CH1)
 
-mdic = {'ultrasound': continuous_data_CH1, 'sig' : continuous_data_CH2}
-savemat ('device_interface/data.mat', mdic)
+datajson_save_dir = os.path.join(os.getcwd(), 'device_interface', 'data.json')
+
+with open(datajson_save_dir, 'r') as f:
+    data_json_loaded = json.load(f)
+with open(datajson_save_dir, 'w') as f:
+    data_json_loaded['ultrasound'].append(list(continuous_data_CH1))
+    data_json_loaded['sig'].append(list(continuous_data_CH2))
+    json.dump(data_json_loaded, f, indent=4)
+    
