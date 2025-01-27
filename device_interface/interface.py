@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from hantek_acqusition import search_device 
 # import pygame
 import serial
 import time
