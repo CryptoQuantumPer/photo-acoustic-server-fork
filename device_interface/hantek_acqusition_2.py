@@ -207,6 +207,7 @@ def dsoHTSetRamAndTrigerControl(device_index, nTimeDiv, nCHset, nTrigerSource, n
     return state
 
 def dsoHTSetCHPos(device_index, nVoltDIV, nPos, nCH, nCHMode):
+    print(device_index, nVoltDIV, nPos, nCH, nCHMode)
     ht_hard_dll.dsoHTSetCHPos.argtypes = [c_ushort, c_short, c_short, c_short, c_int]
     ht_hard_dll.dsoHTSetCHPos.restype = c_uint16
     state = ht_hard_dll.dsoHTSetCHPos(device_index, nVoltDIV, nPos, nCH, nCHMode)
@@ -299,18 +300,22 @@ m_stControl.nALT = 0
 m_stControl.nFPGAVersion = 0xa000
 
 bCHEnable = [1, 1, 1, 1]
-nCHVoltDIV = [5, 5, 5, 5]
-nCHCoupling = AC
-bCHBWLimit = 0
+nCHVoltDIV = [1, 1, 1, 1]
+nCHCoupling = [AC, AC, AC, AC]
+bCHBWLimit = [0, 0, 0, 0]
 for i in range(MAX_CH_NUM):
-    RelayControl.bCHEnable[i] = 1
-    RelayControl.bTrigFilt = 0
-    RelayControl.nALT = 0
+    RelayControl.bCHEnable[i] = bCHEnable[i]
+    RelayControl.nCHVoltDIV[i] = nCHVoltDIV[i]
+    RelayControl.nCHCoupling[i] = nCHCoupling[i]
+    RelayControl.bCHBWLimit[i] = bCHBWLimit[i]
+RelayControl.nTrigSource = CH1 
+RelayControl.bTrigFilt = 0
+RelayControl.nALT = 0
 m_nTriggerMode = EDGE
 m_nTriggerSLope = RISE
 m_nTriggerSweep = AUTO
 m_nLeverPos = [0, 0, 0, 0]
-m_nLeverPos[CH1] = 255
+m_nLeverPos[CH1] = 192
 m_nLeverPos[CH2] = 160
 m_nLeverPos[CH3] = 96
 m_nLeverPos[CH4] = 64
