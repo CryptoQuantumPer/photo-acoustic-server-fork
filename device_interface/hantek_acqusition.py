@@ -210,18 +210,18 @@ class RelayControl(ctypes.Structure):
 
 
 control_data = ControlData()
-control_data.nCHSet = 0b1000    # disable all four channels (CH1, CH2, CH3, CH4)
+control_data.nCHSet = 0x0F    # disable all four channels (CH1, CH2, CH3, CH4)
 control_data.nCHSet |= (1 << 0)  # Enable CH1
 control_data.nCHSet |= (1 << 2)  # Enable CH3
 control_data.nTimeDIV = 16    # Example time base index
 control_data.nTriggerSource = 0  # CH1 as the trigger source
 control_data.nHTriggerPos = 0   # Horizontal trigger position: 50%
 control_data.nVTriggerPos = 255   # Vertical trigger position
-control_data.nTriggerSlope = 0   # Rising edge trigger
+control_data.nTriggerSlope = 1   # Rising edge trigger
 control_data.nBufferLen = 4096   # Buffer length (4K)
 control_data.nReadDataLen = 4096  # Data length to be read (4K)
 control_data.nAlreadyReadLen = 4096  # No data has been read yet
-control_data.nALT = 0  # Alternate trigger off
+control_data.nALT = 1  # Alternate trigger off
 control_data.nETSOpen = False
 
 
@@ -253,7 +253,7 @@ relay_control.bCHBWLimit[3] = 0
 
 
 
-nYTFormat = 2 # mode of horizontal format 0-normal, 1-Scan, 2-Roll
+nYTFormat = 0 # mode of horizontal format 0-normal, 1-Scan, 2-Roll
 search_device()
 connect_device(in_device_index = 0)
 dsoInitHard(device_index)
@@ -285,7 +285,8 @@ continuous_data_CH2 : list = []
 continuous_data_CH3 : list = []
 continuous_data_CH4 : list = []
 
-while i < 2:
+dsoHTStartCollectData(device_index, nStartControl=2)
+while i < 5:
     if dsoHTGetState(device_index) != 0:
         pCH1DATA, pCH2DATA, pCH3DATA, pCH4DATA = (c_uint16 * control_data.nBufferLen)(), (c_uint16 * control_data.nBufferLen)(), (c_uint16 * control_data.nBufferLen)(), (c_uint16 * control_data.nBufferLen)()
         # dsoHTGetRollData(device_index, pCH1DATA, pCH2DATA, pCH3DATA, pCH4DATA, control_data)
@@ -297,28 +298,29 @@ while i < 2:
         continuous_data_CH1.extend(list(pCH1DATA))
         continuous_data_CH2.extend(list(pCH2DATA))
         i += 1
-    dsoHTStartCollectData(device_index, nStartControl=0)
+    
 
  
 
 
 print("SHOWING COMPLETED DATA")
 
-fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(8, 6), sharex=True)
+fig, axes = plt.subplots(nrows=3, ncols=1, figsize=(8, 6), sharex=True)
 axes[0].plot(continuous_data_CH1)
 axes[0].set_ylim(0, 350)
-axes[0].legend(['ultrasonic data'])
+axes[0].legend(['CH1: ultrasonic data'])
 
 axes[1].plot(continuous_data_CH2)
 axes[1].set_ylim(0, 350)
-axes[1].legend(['Laser Firing'])
+axes[1].legend(['CH2: Laser Firing'])
 
+axes[2].plot(continuous_data_CH1[0: control_data.nBufferLen])
+axes[2].set_ylim(0, 350)
+axes[2].legend(['osciloscope output data'])
 
 plt.show()
 
-
 # nStartControl 0:1 AUTO trigger, 1:1 Roll Mode, 2:1 stop after this collect 
-
 
 
 from scipy.io import savemat, loadmat
