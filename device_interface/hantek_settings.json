@@ -1,0 +1,35 @@
+{
+    "device_index" : 0,
+    "nYTFormat" : 0,
+    "nCHMode" : 2,
+
+    "control_data" : {
+        "nCHSet" : 1,
+        "nTimeDIV" : 1,
+        "nTriggerSource" : 1,
+        "nHTriggerPos" : 128,
+        "nVTriggerPos" : 0,
+        "nTriggerSlope" : 0,
+        "nBufferLen" : 4096,
+        "nReadDataLen" : 4096,
+        "nAlreadyReadLen" : 4096,
+        "nALT" : 0,
+        "nETSOpen" : false
+    },
+
+    "relay_control" : {
+        "bCHEnable" : [1, 1, 0, 0],
+        "nCHVoltDIV" : [2, 10, 0, 0],
+        "nCHCoupling" : [2, 1, 2, 2],
+        "bCHBWLimit" : [0, 0, 0, 0]
+    },
+
+    "nPos_channels" : [115, 255, 0, 0],
+    "nSensitivity_trigger" : 1,
+    "nSensitivity" : 1,
+    "nTriggerMode" : 0,
+    "nTriggerSlop" : 0,
+    "nTriggerCouple" : 0,
+    "nPos_trigger": 115
+}
+
