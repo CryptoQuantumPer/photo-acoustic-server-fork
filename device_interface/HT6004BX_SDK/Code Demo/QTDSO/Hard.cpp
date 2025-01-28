@@ -118,15 +118,18 @@ void Hard::ReadData()
     USHORT* pReadData[MAX_CH_NUM];
     for(i=0;i<MAX_CH_NUM;i++)
     {
+        // make buffer
         pReadData[i] = new USHORT[m_stControl.nReadDataLen];
         memset(pReadData[i],0,m_stControl.nReadDataLen*sizeof(USHORT));
     }
+
     dsoHTGetData(m_nDeviceIndex,pReadData[CH1],pReadData[CH2],pReadData[CH3],pReadData[CH4],&m_stControl);
     m_bDraw=true;
     for(WORD i=0;i<MAX_CH_NUM;i++)
     {
         SourceToDisplay(pReadData[i],m_stControl.nReadDataLen,i);
     }
+    // delete
     for(i=0;i<MAX_CH_NUM;i++)
     {
         delete pReadData[i];
