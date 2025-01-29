@@ -106,6 +106,9 @@ SINGLE = 2
 # Edge Types
 RISE = 0
 FALL = 1
+volt_indicies = {3: ("20 mV/Div", 20e-3), 4: ("50 mV/Div", 50e-3), 5: ("100 mV/Div", 0.1),
+                              6: ("200 mV/Div", 0.2),
+                              7: ("500 mV/Div", 0.5), 8: ("1 V/Div", 1.0), 9: ("2 V/Div", 2.0), 10: ("5 V/Div", 5.0)}
  
 
 class ControlData(ctypes.Structure):
@@ -231,6 +234,29 @@ def dsoHTSetTrigerMode(device_index, nTriggerMode, nTriggerSlop, nTriggerCouple)
     else: print(f'fail dsoHTSetTrigerMode to dv{device_index}')
     return state
 
+def dsoHTSetCHAndTriggerVB(device_index, pCHEnable, pCHVoltDIV, pCHCoupling, pCHBWLimit, nTriggerSource, nTriggerFilt, nALT, nTimeDIV):
+    ht_hard_dll.dsoHTSetCHAndTriggerVB.argtypes = [POINTER(RELAYCONTROL.bCHEnable), c_ushort, c_short, c_int]
+    ht_hard_dll.dsoHTSetCHAndTriggerVB.restype = c_uint16
+    state = ht_hard_dll.dsoHTSetCHAndTriggerVB(device_index, pCHEnable, pCHVoltDIV, pCHCoupling, pCHBWLimit, nTriggerSource, nTriggerFilt, nALT, nTimeDIV)
+    
+    if state == 1: print(f'dsoHTSetTrigerMode of dv{device_index} succeed')
+    else: print(f'fail dsoHTSetTrigerMode to dv{device_index}')
+    return state
+
+
+@staticmethod
+def convert_read_data(input_data, scale, scale_points=32.0):
+    """
+        Helper function for converting the data taken from the scope into its true analog representation.
+        Takes input from scope data, and the scaling factor, with the optional number of points in the
+        scaling division. Returns an array of analog values read from the scope.
+    """
+    point_div = scale / scale_points
+    out = [0.0 for _ in input_data]
+    input_data = [j for j in input_data]
+    for j in range(0, len(input_data)):
+        out[j] = input_data[j] * point_div
+    return input_data
 
 
 # def dsoHTSetAmpCalibrate(device_index, nCHSet, nTimeDIV, nVoltDiv, pCHPOS):
@@ -245,21 +271,20 @@ def dsoHTStartCollectData(device_index, nStartControl):
     ht_hard_dll.dsoHTStartCollectData.argtypes = [c_ushort, c_short]
     ht_hard_dll.dsoHTStartCollectData.restype = c_uint
     state = ht_hard_dll.dsoHTStartCollectData(device_index, nStartControl)
-    if state != 0: 
-        pass
-        # print(f'dsoHTStartCollectData of dv{device_index} succeed')
+    if state == 1: 
+        print(f'dsoHTStartCollectData of dv{device_index} succeed')
     else: print(f'fail dsoHTStartCollectData to dv{device_index}')
     return state
 
 
 def dsoHTGetState(device_index, print_succcess:bool=False):
     ht_hard_dll.dsoHTGetState.argtypes = [c_ushort]
-    ht_hard_dll.dsoHTGetState.restype = c_uint
+    ht_hard_dll.dsoHTGetState.restype = c_ushort
     state = ht_hard_dll.dsoHTGetState(device_index)
-    # if state != 0 and print_succcess == True: 
-    #     print(f'dsoHTGetState:data collection of dv{device_index} succeed')
-    # else: print(f'fail dsoHTGetState of dv{device_index}')
-    return state
+    
+    is_triggered = bool(state & 0x01)
+    is_data_finished = bool(state & 0x02)
+    return is_triggered, is_data_finished
 
 def dsoHTGetData(device_index, pCH1Data_buffer, pCH2Data_buffer, pCH3Data_buffer, pCH4Data_buffer, CONTROL, print_succcess = False):
     ht_hard_dll.dsoHTGetData.argtypes = [c_ushort, POINTER(c_ushort), POINTER(c_ushort), POINTER(c_ushort), POINTER(c_ushort), POINTER(ControlData)]
@@ -269,6 +294,9 @@ def dsoHTGetData(device_index, pCH1Data_buffer, pCH2Data_buffer, pCH3Data_buffer
         print(f'dsoHTGetData get data of dv{device_index} succeed')
     elif state == 0: print(f'FAIL: dsoHTGetData data retrieval ; returned {state}')
     return state
+
+def scale_data(raw_data, volt_div):
+    return (raw_data - 128) * (volt_div / 25.5)
 
 
 # def dsoHTGetRollData(device_index, pCH1Data_buffer, pCH2Data_buffer, pCH3Data_buffer, pCH4Data_buffer, CONTROL, print_success=False):
@@ -285,24 +313,27 @@ def dsoHTGetData(device_index, pCH1Data_buffer, pCH2Data_buffer, pCH3Data_buffer
 m_stControl = ControlData()
 RelayControl = RELAYCONTROL()
 # def Hard():
-m_nTimeDIV = 9 
+m_nTimeDIV = 17
 m_nYTFormat = YT_NORMAL
 
 m_stControl.nCHSet = 0x0F
 m_stControl.nTimeDIV = m_nTimeDIV
-m_stControl.nTriggerSource - CH1
+m_stControl.nTriggerSource = CH3
 m_stControl.nHTriggerPos = 50
-m_stControl.nVTriggerpos = 64
-m_stControl.nBufferLen = BUF_4K_LEN
-m_stControl.nReadDataLen = BUF_4K_LEN
-m_stControl.nAlreadyReadLen = BUF_4K_LEN
+m_stControl.nVTriggerPos = 100
+m_stControl.nBufferLen = BUF_8K_LEN
+m_stControl.nReadDataLen = BUF_8K_LEN
+m_stControl.nAlreadyReadLen = BUF_8K_LEN
 m_stControl.nALT = 0
 m_stControl.nFPGAVersion = 0xa000
 
+
+
 bCHEnable = [1, 1, 1, 1]
-nCHVoltDIV = [1, 1, 1, 1]
-nCHCoupling = [AC, AC, AC, AC]
+nCHVoltDIV = [9, 9, 9, 9]
+nCHCoupling = [DC, AC, AC, AC]
 bCHBWLimit = [0, 0, 0, 0]
+
 for i in range(MAX_CH_NUM):
     RelayControl.bCHEnable[i] = bCHEnable[i]
     RelayControl.nCHVoltDIV[i] = nCHVoltDIV[i]
@@ -315,17 +346,22 @@ m_nTriggerMode = EDGE
 m_nTriggerSLope = RISE
 m_nTriggerSweep = AUTO
 m_nLeverPos = [0, 0, 0, 0]
-m_nLeverPos[CH1] = 192
-m_nLeverPos[CH2] = 160
-m_nLeverPos[CH3] = 96
-m_nLeverPos[CH4] = 64
+m_nLeverPos[CH1] = 128
+m_nLeverPos[CH2] = 128
+m_nLeverPos[CH3] = 128
+m_nLeverPos[CH4] = 128
 
 m_bCollect = True
 m_nReadOK = 0
     
 
 
-
+for _field_name, _field_type in m_stControl._fields_:
+    value = getattr(m_stControl, _field_name)
+    print(f'm_stControl {_field_name} {value}')
+for _field_name, _field_type in RelayControl._fields_:
+    value = getattr(RelayControl, _field_name)
+    print(f'm_stControl {_field_name} {value}')
 
 def Init():
     dsoInitHard(device_index= m_nDeviceIndex)
@@ -365,13 +401,49 @@ Init()
 if m_bStartC:
     dsoHTStartCollectData(device_index= m_nDeviceIndex, nStartControl = 1)
     m_bStartC = False
+    
+    is_triggered, is_data_finished = dsoHTGetState(device_index= m_nDeviceIndex)
+    print(f'bef state {is_triggered, is_data_finished}')
+    
+i = 0
+continuous_data = [[],[],[],[]]
+
+plt.ion()
+fig, ax = plt.subplots(nrows=4, ncols=1)
+plt.show()
+
 while True:
-    if dsoHTGetState(device_index= m_nDeviceIndex) != 0:
+    is_triggered, is_data_finished = dsoHTGetState(device_index= m_nDeviceIndex)
+    
+    if is_triggered: print(f'bef state {is_triggered, is_data_finished}')
+    while (dsoHTGetState(device_index= m_nDeviceIndex) != 0x02):
         read_data = np.array(ReadData())
-        break
+        for i in range(len(read_data)):
+            # scaled_data = convert_read_data(read_data[i], 2.0)
+            # scaled_data = scale_data(read_data[i], RelayControl.nCHVoltDIV[i])
+            scaled_data = read_data[i]
+            ax[i].cla()  # Clear the previous plot
+            ax[i].plot(scaled_data)  # Plot the scaled data
+            ax[i].set_title(f"Channel {i+1}")
+            # ax[i].set_ylim([-RelayControl.nCHVoltDIV[i], RelayControl.nCHVoltDIV[i]])
+        # for i in range(len(read_data)):
+        #     ax[i].cla()
+        #     ax[i].plot(read_data[i])
+        dsoHTStartCollectData(device_index= m_nDeviceIndex, nStartControl = 1)
+        
+        plt.pause(1e-10)
+        
+        print('reading data')
+        
+    
+    # if is_triggered and is_data_finished:
+    #     print(f'bef state {is_triggered, is_data_finished}')
+    #     read_data = np.array(ReadData())
+    #     break
+    #     # for num, yCH_data in enumerate(read_data):
+    #     #     continuous_data[num].extend(yCH_data)
     
 print(read_data.shape)
 plt.plot(read_data[0]) # plot CH1
 plt.show()
-
 
