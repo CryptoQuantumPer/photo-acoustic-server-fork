@@ -1,0 +1,5 @@
+Signal factor
+
+Trigger position 314 mV
+Vsig_volt = 500 mV
+TIME_DIV = 50 us

@@ -259,13 +259,13 @@ def convert_read_data(input_data, scale, scale_points=32.0):
     return input_data
 
 
-# def dsoHTSetAmpCalibrate(device_index, nCHSet, nTimeDIV, nVoltDiv, pCHPOS):
-#     # ht_hard_dll.dsoHTSetAmpCalibrate.argtypes = [c_uint16, c_uint16, c_uint16, c_uint16, POINTER(c_uint16)]
-#     # ht_hard_dll.dsoHTSetAmpCalibrate.restype = c_uint
-#     state = ht_hard_dll.dsoHTSetAmpCalibrate(device_index, nCHSet, nTimeDIV, nVoltDiv, pCHPOS)
-#     if state != 0: print(f'dsoHTSetAmpCalibrate of dv{device_index} succeed')
-#     else: print(f'fail dsoHTSetAmpCalibrate to dv{device_index}')
-#     return state
+def dsoHTSetAmpCalibrate(device_index, nCHSet, nTimeDIV, nVoltDiv, pCHPOS):
+    # ht_hard_dll.dsoHTSetAmpCalibrate.argtypes = [c_uint16, c_uint16, c_uint16, c_uint16, POINTER(c_uint16)]
+    # ht_hard_dll.dsoHTSetAmpCalibrate.restype = c_uint
+    state = ht_hard_dll.dsoHTSetAmpCalibrate(device_index, nCHSet, nTimeDIV, nVoltDiv, pCHPOS)
+    if state != 0: print(f'dsoHTSetAmpCalibrate of dv{device_index} succeed')
+    else: print(f'fail dsoHTSetAmpCalibrate to dv{device_index}')
+    return state
 
 def dsoHTStartCollectData(device_index, nStartControl):
     ht_hard_dll.dsoHTStartCollectData.argtypes = [c_ushort, c_short]
@@ -331,7 +331,7 @@ m_stControl.nFPGAVersion = 0xa000
 
 bCHEnable = [1, 1, 1, 1]
 nCHVoltDIV = [9, 9, 9, 9]
-nCHCoupling = [DC, AC, AC, AC]
+nCHCoupling = [AC, AC, AC, AC]
 bCHBWLimit = [0, 0, 0, 0]
 
 for i in range(MAX_CH_NUM):
@@ -345,7 +345,7 @@ RelayControl.nALT = 0
 m_nTriggerMode = EDGE
 m_nTriggerSLope = RISE
 m_nTriggerSweep = AUTO
-m_nLeverPos = [0, 0, 0, 0]
+m_nLeverPos = [None, None, None, None]
 m_nLeverPos[CH1] = 128
 m_nLeverPos[CH2] = 128
 m_nLeverPos[CH3] = 128
@@ -412,6 +412,12 @@ plt.ion()
 fig, ax = plt.subplots(nrows=4, ncols=1)
 plt.show()
 
+volts_per_div = 1e-0  # 100mV per division
+time_per_div = 1e-3  # 5 microseconds per division
+adc_offset = 128  # Midpoint for signed conversion (assuming 8-bit unsigned)
+adc_scale = volts_per_div / 128  # Approximate scale factor
+
+
 while True:
     is_triggered, is_data_finished = dsoHTGetState(device_index= m_nDeviceIndex)
     
@@ -421,14 +427,12 @@ while True:
         for i in range(len(read_data)):
             # scaled_data = convert_read_data(read_data[i], 2.0)
             # scaled_data = scale_data(read_data[i], RelayControl.nCHVoltDIV[i])
-            scaled_data = read_data[i]
+            adc_values_uint8 = read_data[i]
+            voltages = (adc_values_uint8 - adc_offset) * adc_scale
+            
             ax[i].cla()  # Clear the previous plot
-            ax[i].plot(scaled_data)  # Plot the scaled data
+            ax[i].plot(voltages)  # Plot the scaled data
             ax[i].set_title(f"Channel {i+1}")
-            # ax[i].set_ylim([-RelayControl.nCHVoltDIV[i], RelayControl.nCHVoltDIV[i]])
-        # for i in range(len(read_data)):
-        #     ax[i].cla()
-        #     ax[i].plot(read_data[i])
         dsoHTStartCollectData(device_index= m_nDeviceIndex, nStartControl = 1)
         
         plt.pause(1e-10)
@@ -447,3 +451,38 @@ print(read_data.shape)
 plt.plot(read_data[0]) # plot CH1
 plt.show()
 
+
+
+
+# convertion
+adc_values_uint8 = np.frombuffer(binary_data, dtype=np.uint8)
+
+
+# Convert ADC values to voltage
+voltages = (adc_values_uint8 - adc_offset) * adc_scale
+
+plt.plot(voltages)
+plt.show()
+
+# Generate time values based on the oscilloscope sampling interval
+num_samples = len(voltages)
+time_values = np.linspace(0, num_samples * time_per_div, num_samples)
+
+# Create a DataFrame for easy saving and analysis
+df = pd.DataFrame({"Time (s)": time_values, "Voltage (V)": voltages})
+
+# Save to CSV file
+df.to_csv(csv_output_path, index=False)
+
+# Plot the extracted waveform (first 1000 samples for visualization)
+plt.figure(figsize=(10, 4))
+plt.plot(time_values[:1000], voltages[:1000], label="Extracted Waveform")
+plt.title("Extracted Waveform from Hantek 6254BE")
+plt.xlabel("Time (s)")
+plt.ylabel("Voltage (V)")
+plt.grid()
+plt.legend()
+plt.show()
+
+# Output file path
+print(f"Waveform data saved to: {csv_output_path}")

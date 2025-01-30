@@ -1,0 +1,533 @@
+from ctypes import c_short, POINTER, c_uint, c_uint16, byref , Structure, c_bool, WinDLL, c_ushort, c_int, c_int8, c_int16, c_int32
+import os
+import matplotlib.pyplot as plt
+import numpy as np
+
+
+base_filepath = os.path.join(os.getcwd(), 'device_interface')
+dll_x64_path = os.path.join(base_filepath, 'HT6004BX_SDK', 'DLL', 'x64')
+
+
+MAX_CH_NUM = 4
+
+class ControlData(Structure):
+    _fields_ = [
+        ("nCHSet", c_short),            # Channel enable/disable
+        ("nTimeDIV", c_short),          # Time base index
+        ("nTriggerSource", c_short),    # Trigger source index
+        ("nHTriggerPos", c_short),      # Horizontal trigger position (0-100)
+        ("nVTriggerPos", c_short),      # Vertical trigger position
+        ("nTriggerSlope", c_short),     # Edge trigger slope (0: rise, 1: fall)
+        ("nBufferLen", c_int),          # Buffer length
+        ("nReadDataLen", c_int),        # Length of data to be read
+        ("nAlreadyReadLen", c_int),     # Length of data already read
+        ("nALT", c_short),              # Alternate trigger (0: off, 1: on)
+        ("nETSOpen", c_short),          # FPGA version
+        ("nDriverCode", c_short),       # Driver code
+        ("nLastAddress", c_int),        # Last address
+        ("nFPGAVersion", c_short)       # FPGA version
+    ]
+
+class RELAYCONTROL(Structure):
+    _fields_ = [
+        ("bCHEnable", c_short * MAX_CH_NUM),   # Channel Enable/Disable Array
+        ("nCHVoltDIV", c_ushort * MAX_CH_NUM),# Voltage Division Array
+        ("nCHCoupling", c_short * MAX_CH_NUM),# Coupling Mode Array (0: DC, 1: AC, 2: GND)
+        ("bCHBWLimit", c_int * MAX_CH_NUM),  # Bandwidth Limit Array (1: ON, 0: OFF)
+        ("nTrigSource", c_short),            # Trigger Source (0: CH1, 1: CH2, etc.)
+        ("bTrigFilt", c_int),                # High Frequency Rejection Filter (1: ON, 0: OFF)
+        ("nALT", c_short)                    # Alternate Trigger (1: Alternate, 0: Non-alternate)
+    ]
+
+
+
+class oscilloscope(object):
+    def __init__(self, scopeid = 0):
+        self.scopeid = c_ushort(scopeid)
+        
+        self.m_stControl = ControlData()
+        self.m_relaycontrol = RELAYCONTROL()
+        
+        #------ defienitions--------
+        self.TIME_DIV_INDEX = {
+            0: ('2ns/Div', 2e-9),   1: ('5ns/Div', 5e-9),    2: ('10ns/Div', 10e-9),  
+            3: ('20ns/Div', 20e-9),  4: ('50ns/Div', 50e-9),  5: ('100ns/Div', 100e-9),
+            6: ('200ns/Div', 200e-9), 7: ('500ns/Div', 500e-9), 8: ('1us/Div', 1e-6),  
+            9: ('2us/Div', 2e-6),    10: ('5us/Div', 5e-6),   11: ('10us/Div', 10e-6),
+            12: ('20us/Div', 20e-6), 13: ('50us/Div', 50e-6), 14: ('100us/Div', 100e-6),  
+            15: ('200us/Div', 200e-6), 16: ('500us/Div', 500e-6), 17: ('1ms/Div', 1e-3),  
+            18: ('2ms/Div', 2e-3),   19: ('5ms/Div', 5e-3),   20: ('10ms/Div', 10e-3),
+            21: ('20ms/Div', 20e-3), 22: ('50ms/Div', 50e-3), 23: ('100ms/Div', 100e-3),  
+            24: ('200ms/Div', 200e-3), 25: ('500ms/Div', 500e-3), 26: ('1s/Div', 1),
+            27: ('2s/Div', 2),       28: ('5s/Div', 5),       29: ('10s/Div', 10),  
+            30: ('20s/Div', 20),     31: ('50s/Div', 50),     32: ('100s/Div', 100), 
+            33: ('200s/Div', 200),   34: ('500s/Div', 500),   35: ('1000s/Div', 1000)
+        }
+
+        self.VOLT_DIV_INDEX = {
+            0: ('2mV/Div', 2e-3, 16e-3),   1: ('5mV/Div', 5e-3, 40e-3),   2: ('10mV/Div', 10e-3, 80e-3),  
+            3: ('20mV/Div', 20e-3, 160e-3), 4: ('50mV/Div', 50e-3, 400e-3), 5: ('100mV/Div', 100e-3, 800e-3),
+            6: ('200mV/Div', 200e-3, 1.6),  7: ('500mV/Div', 500e-3, 4.0),  8: ('1V/Div', 1.0, 8.0),  
+            9: ('2V/Div', 2.0, 16.0),      10: ('5V/Div', 5.0, 40.0),      11: ('10V/Div', 10.0, 80.0)
+        }
+        
+        self.hthard_dll = WinDLL(os.path.join(dll_x64_path, 'HTHardDll.dll'))
+        
+        self.MAX_TIMEDIV_NUM = 36  # Total time division levels
+        self.TIMEDIV_OFFSET = 2  # Time base offset
+
+        self.DRIVERVERLEN = 8  # Must be even
+        self.AUTOSET_TIME1 = 19
+        self.AUTOSET_TIME2 = 18
+        self.ZERO_START_VOLT = 5
+        self.BUF_10K_LIMIT = None  # Undefined
+
+        self.PI = 3.14159265358979323846
+        self.BUF_4K_LEN = 0x1000
+        self.BUF_3K_LEN = 0x0C00  # 3072
+        self.BUF_8K_LEN = 0x2000
+        self.BUF_16K_LEN = 0x4000
+        self.BUF_32K_LEN = 0x8000
+        self.BUF_64K_LEN = 0x10000
+
+        self.BUF_INSERT_LEN = None  # BUF_72K_LEN is undefined
+
+        self.DEF_READ_DATA_LEN = self.BUF_4K_LEN  # Default data read length
+        self.DEF_DRAW_DATA_LEN = 2500  # Default data draw length
+
+        self.MAX_INSERT_TIMEDIV = 6  # 200nS maximum interpolation for time division
+        self.MAX_DOUBLE_TIMEDIV = self.MAX_INSERT_TIMEDIV
+        self.MAX_SF_T_TIMEDIV = self.MAX_INSERT_TIMEDIV - 2  # Requires software-triggered time division
+        self.MAX_SINE_TIMEDIV = 3  # Must use sine interpolation
+
+        self.MIN_SCAN_TIMEDIV = 25  # Minimum time division for scan mode
+        self.MIN_ROLL_TIMEDIV = 27  # Minimum time division for roll mode
+
+        self.SINE_WAVE_LEN = 128  # Length of sine wave in the center window
+        self.MAX_ETS_TIMEDIV = 3  # ETS maximum time division (0, 1, 2, 3)
+        self.ETS_SAMPLING_100M = 0  # ETS 100M sampling
+
+        #  Calibration
+        self.NEW_CAL_LEVEL_LEN = 400  # Calibration level length
+
+        # Vertical Settings
+        self.CH1 = 0
+        self.CH2 = 1
+        self.CH3 = 2
+        self.CH4 = 3
+
+        self.MAX_CH_NUM = MAX_CH_NUM
+        self.HORIZONTAL = self.MAX_CH_NUM  # Horizontal lever
+        self.MATH = self.MAX_CH_NUM  # Vertical lever (CH1/CH2/CH3/CH4/MATH/REF)
+        self.REF = self.MAX_CH_NUM + 1
+        self.ALL_CH = self.MAX_CH_NUM + 2
+        self.MIN_DATA = 0
+        self.MAX_DATA = 255
+        self.MID_DATA = 128
+        self.MAX_VOLTDIV_NUM = 12
+
+        # Display Modes
+        self.YT = 0
+        self.XY = 1
+        self.YT_NORMAL = 0
+        self.YT_SCAN = 1
+        self.YT_ROLL = 2
+
+        # Coupling Modes
+        self.DC = 0
+        self.AC = 1
+        self.GND = 2
+        
+        # Trigger
+        self.MAX_TRIGGER_SOURCE_NUM = self.MAX_CH_NUM + 2  # CH1/CH2/CH3/CH4/EXT/(EXT/10)
+        self.MAX_ALT_TRIGGER_NUM = self.MAX_CH_NUM + 2  # CH1/CH2/CH3/CH4
+        self.EXT = self.MAX_CH_NUM
+        self.EXT10 = self.MAX_CH_NUM + 1
+
+        # Trigger Types
+        self.EDGE = 0
+        self.PULSE = 1
+        self.VIDEO = 2
+        self.CAN = 3
+        self.LIN = 4
+        self.UART = 5
+        self.SPI = 6
+        self.IIC = 7
+
+        self.FORCE = 0x80
+
+        # Trigger Modes
+        self.AUTO = 0
+        self.NORMAL = 1
+        self.SINGLE = 2
+
+        # Edge Types
+        self.RISE = 0
+        self.FALL = 1
+        
+        self.OPEN_PEAK_COLLECTION = 1
+        
+        self.cal_data = None
+        
+        # ------settings-----
+        self.nCHMode = 4
+        self.m_ntimediv = 0
+        self.m_nYTFormat = self.YT_NORMAL
+        self.nTrigSource = self.CH1
+        self.bCHEnable = [1, 1, 1, 1]
+        self.nCHVoltDIV = [9, 9, 9, 9]
+        self.nCHCoupling = [self.AC, self.AC, self.AC, self.AC]
+        self.bCHBWLimit = [0, 0, 0, 0]
+        self.nPos_channel = [128, 128, 128, 128]
+        self.nSensitivity_trigger = 1
+        self.m_nTriggerMode = self.PULSE
+        self.m_nTriggerSlope = self.RISE
+        self.m_nTriggerCouple = self.nCHCoupling[self.nTrigSource]  # DC:0 AC:1 2:Low frequency suppression 3:High frequency suppression
+        self.m_nTriggerSweep = self.AUTO
+        self.nStartControl_collect = self.AUTO
+    
+        self.nPeak = self.OPEN_PEAK_COLLECTION
+        
+        
+    def set_m_stControl(self):
+        self.m_stControl.nCHSet = 0x0F
+        self.m_stControl.nTimeDIV = self.m_ntimediv
+        self.m_stControl.nTriggerSource = self.CH3
+        self.m_stControl.nHTriggerPos = 50
+        self.m_stControl.nVTriggerPos = 128
+        self.m_stControl.nBufferLen = self.BUF_8K_LEN
+        self.m_stControl.nReadDataLen = self.m_stControl.nBufferLen
+        self.m_stControl.nAlreadyReadLen = self.m_stControl.nBufferLen
+        self.m_stControl.nALT = 0
+        self.m_stControl.nFPGAVersion = 0xa000
+    def set_m_relaycontrol(self):
+        for i in range(MAX_CH_NUM):
+            self.m_relaycontrol.bCHEnable[i] = self.bCHEnable[i]
+            self.m_relaycontrol.nCHVoltDIV[i] = self.nCHVoltDIV[i]
+            self.m_relaycontrol.nCHCoupling[i] = self.nCHCoupling[i]
+            self.m_relaycontrol.bCHBWLimit[i] = self.bCHBWLimit[i]
+        self.m_relaycontrol.nTrigSource = self.nTrigSource
+        self.m_relaycontrol.bTrigFilt = 0
+        self.m_relaycontrol.nALT = 0
+  
+    def search_device(self, return_buffer_size = 32):
+        self.ht_hard_dll.dsoHTSearchDevice.argtypes = [POINTER(c_short)]
+        self.ht_hard_dll.dsoHTSearchDevice.restype = c_uint
+        device_info = (c_short * return_buffer_size)()
+        result = self.ht_hard_dll.dsoHTSearchDevice(device_info)
+        if result == 0:
+            print(f'Founded device(s):')
+        elif result == 1: print('No device found')
+        return device_info
+
+    def dsoHTDeviceConnect(self, scopeid = 0):
+        self.scopeid = scopeid
+        self.hthard_dll.dsoHTDeviceConnect.argtypes = [c_uint]
+        self.hthard_dll.dsoHTDeviceConnect.restype = c_uint
+        rr_con = self.hthard_dll.dsoHTDeviceConnect(self.scopeid)
+        if rr_con: print(f'dv{self.scopeid} Connected successfully!')
+        else: 
+            print('FAIL: dsoHTDeviceConnect')
+            exit()
+        return rr_con
+            
+    def dsoInitHard(self):
+        self.hthard_dll.dsoInitHard.argtypes = [c_ushort]
+        self.hthard_dll.dsoInitHard.restype = c_uint
+        retval = self.hthard_dll.dsoInitHard(self.scopeid)
+        if retval == 0:
+            return True
+        else:
+            print(f'dsoInitHard retval:  {retval}')
+            return False
+
+    def setup_dso_cal_level(self):
+        if self.cal_data is None:
+            self.cal_data = (c_short * self.NEW_CAL_LEVEL_LEN)()
+        retval = self.hthard_dll.dsoHTReadCalibrationData(self.scopeid, byref(self.cal_data), c_short(self.NEW_CAL_LEVEL_LEN))
+        
+        if retval == 0:
+            return True
+        else:
+            print(f'setup_dso_cal_level retval:  {retval}')
+            return False
+
+    def dsoHTADCCHModGain(self):
+        '''
+        parram function; scopeid [nCHMode]
+        '''
+        self.hthard_dll.dsoHTADCCHModGain.argtypes = [c_ushort, c_int]
+        self.hthard_dll.dsoHTADCCHModGain.restype = c_uint
+        retval = self.hthard_dll.dsoHTADCCHModGain(self.scopeid, self.nCHMode)
+        if retval == 0:
+            return True
+        else:
+            print(f'dsoHTADCCHModGain retval:  {retval}')
+            return False
+
+    # nYTFormat - mode of horizontal format 0-normal, 1-Scan, 2-Roll
+    def dsoHTSetSampleRate(self):
+        '''
+            parram function; scopeid [nYTFormat, relay_con, CONTROL]
+        '''
+        self.hthard_dll.dsoHTSetSampleRate.argtypes = [c_ushort, c_ushort, POINTER(RELAYCONTROL), POINTER(ControlData)]
+        self.hthard_dll.dsoHTSetSampleRate.restype = c_uint16
+        retval = self.hthard_dll.dsoHTSetSampleRate(self.scopeid, self.m_nYTFormat, byref(self.m_relaycontrol), byref(self.m_stControl))
+        if retval == 0:
+            return True
+        else:
+            print(f'dsoHTSetSampleRate retval:  {retval}')
+            return False
+
+    def dsoHTSetCHAndTrigger(self):
+        '''
+            parram function; scopeid [relay_con, nTimeDIV]
+        '''
+        self.hthard_dll.dsoHTSetCHAndTrigger.argtypes = [c_ushort, POINTER(RELAYCONTROL), c_ushort]
+        self.hthard_dll.dsoHTSetCHAndTrigger.restype = c_uint16
+        retval = self.hthard_dll.dsoHTSetCHAndTrigger(self.scopeid, byref(self.m_relaycontrol), self.m_ntimediv)
+        if retval == 0:
+            return True
+        else:
+            print(f'dsoHTSetCHAndTrigger retval:  {retval}')
+            return False
+
+    def dsoHTSetRamAndTriggerControl(self):
+        '''
+            parram function; scopeid [nTimeDiv, nCHset, nTrigerSource, nPeak]
+        '''
+        self.hthard_dll.dsoHTSetRamAndTrigerControl.argtypes = [c_ushort, c_short, c_short, c_short, c_int]
+        self.hthard_dll.dsoHTSetRamAndTrigerControl.restype = c_uint16
+        retval = self.hthard_dll.dsoHTSetRamAndTrigerControl(self.scopeid, self.m_ntimediv, self.m_stControl.nCHSet, self.nTrigSource, self.nPeak)
+        if retval == 0:
+            return True
+        else:
+            print(f'dsoHTSetRamAndTrigerControl retval:  {retval}')
+            return False
+
+    # TODO: added CHLevel(calibration data to dsoHTSetCHPos)
+    # def dsoHTSetCHPos(self, CHLevel, nVoltDIV, nPos, nCH, nCHMode):
+    #     print(CHLevel, nVoltDIV, nPos, nCH, nCHMode)
+    #     self.ht_hard_dll.dsoHTSetCHPos.argtypes = [c_ushort, c_short, c_short, c_short, c_short, c_int]
+    #     self.ht_hard_dll.dsoHTSetCHPos.restype = c_uint16
+    #     retval = self.ht_hard_dll.dsoHTSetCHPos(self.scopeid, CHLevel, nVoltDIV, nPos, nCH, nCHMode)
+    #     if retval == 0:
+    #         return True
+    #     else:
+    #         print(f'dsoHTSetCHPos retval:  {retval}')
+    #         return False
+    
+    def dsoHTSetCHPos(self):
+        """
+        Sets the channel position for each oscilloscope channel.
+
+        Parameters:
+        - Uses `self.scopeid` (device index).
+        - Uses `self.m_relaycontrol.nCHVoltDIV[n_ch]` (voltage division for each channel).
+        - Uses `self.nPos_channel[n_ch]` (vertical position for each channel).
+        - Uses `self.nCHMode` (channel mode).
+
+        Returns:
+        - True if all channels succeed.
+        - False if any channel fails.
+        """
+        self.hthard_dll.dsoHTSetCHPos.argtypes = [c_ushort, c_ushort, c_ushort, c_ushort, c_ushort]
+        self.hthard_dll.dsoHTSetCHPos.restype = c_ushort
+        
+        nPos_channel_ushort = (c_ushort * self.MAX_CH_NUM)()
+        for num in range(self.MAX_CH_NUM):
+            nPos_channel_ushort[num] = self.nPos_channel[num]
+        
+        for n_ch in range(self.MAX_CH_NUM): 
+            retval = self.hthard_dll.dsoHTSetCHPos(
+                c_ushort(self.scopeid), 
+                c_ushort(self.m_relaycontrol.nCHVoltDIV[n_ch]),  # Pass single voltage division value
+                c_ushort(self.nPos_channel[n_ch]),  # Pass single position value
+                c_ushort(n_ch), 
+                c_ushort(self.nCHMode)
+            )
+            print(f'dsoHTSetCHPos retval:  {retval} of Channel {n_ch}')
+
+    
+    def dsoHTSetAmpCalibrate(self):
+        '''
+            param function; scopeid [nCHSet, nTimeDIV, nVoltDIV, pCHpos]
+        '''
+        
+        self.hthard_dll.dsoHTSetAmpCalibrate.argtypes = [c_ushort, c_ushort, c_ushort, POINTER(c_ushort), POINTER(c_ushort)]
+        self.hthard_dll.dsoHTSetAmpCalibrate.restype = c_ushort
+        
+        nPos_channel_ushort = (c_ushort * self.MAX_CH_NUM)()
+        for num in range(self.MAX_CH_NUM):
+            nPos_channel_ushort[num] = self.nPos_channel[num]
+        retval = self.hthard_dll.dsoHTSetAmpCalibrate(c_ushort(self.scopeid), c_ushort(self.m_stControl.nCHSet), c_ushort(self.m_ntimediv),
+                                                       self.m_relaycontrol.nCHVoltDIV, nPos_channel_ushort)
+        if retval == 0:
+            return True
+        else:
+            print(f'dsoHTSetAmpCalibrate retval:  {retval}')
+            return False
+
+    def dsoHTSetVTriggerLevel(self):
+        '''
+            param function; scopeid [nPos, nSensitivity]
+        '''
+        self.hthard_dll.dsoHTSetVTriggerLevel.argtypes = [c_ushort, c_short, c_int]
+        self.hthard_dll.dsoHTSetVTriggerLevel.restype = c_uint16
+        retval = self.hthard_dll.dsoHTSetVTriggerLevel(self.scopeid, self.m_stControl.nVTriggerPos, 
+                                                        self.nSensitivity_trigger)
+        if retval == 0:
+            return True
+        else:
+            print(f'dsoHTSetVTriggerLevel retval:  {retval}')
+            return False
+
+    def dsoHTSetTrigerMode(self):
+        '''
+            param function; scopeid [nTriggerMode, nTriggerSlop, nTriggerCouple]
+        '''
+        self.hthard_dll.dsoHTSetTrigerMode.argtypes = [c_ushort, c_ushort, c_short, c_int]
+        self.hthard_dll.dsoHTSetTrigerMode.restype = c_uint16
+        retval = self.hthard_dll.dsoHTSetTrigerMode(self.scopeid, self.m_nTriggerMode, self.m_nTriggerSlope, self.m_nTriggerCouple)
+        if retval == 0:
+            return True
+        else:
+            print(f'dsoHTSetTrigerMode retval:  {retval}')
+            return False
+
+    def dsoHTSetCHAndTriggerVB(self):
+        """
+        Sets channel configuration and trigger settings.
+
+        Parameters:
+        - Uses `self.scopeid` (device index).
+        - Uses `self.m_relaycontrol.bCHEnable` (channel enable array).
+        - Uses `self.m_relaycontrol.nCHVoltDIV` (voltage division array).
+        - Uses `self.m_relaycontrol.nCHCoupling` (coupling mode array).
+        - Uses `self.m_relaycontrol.bCHBWLimit` (bandwidth limit array).
+        - Uses `self.m_stControl.nTriggerSource` (trigger source).
+        - Uses `self.m_relaycontrol.bTrigFilt` (trigger filter).
+        - Uses `self.m_relaycontrol.nALT` (ALT mode).
+        - Uses `self.m_ntimediv` (time division index).
+
+        Returns:
+        - True if configuration succeeds.
+        - False if configuration fails.
+        """
+        self.hthard_dll.dsoHTSetCHAndTriggerVB.argtypes = [
+            c_ushort,              # nDeviceIndex
+            POINTER(c_short),      # pCHEnable (pointer to array)
+            POINTER(c_short),      # pCHVoltDIV (pointer to array)
+            POINTER(c_short),      # pCHCoupling (pointer to array)
+            POINTER(c_short),      # pCHBWLimit (pointer to array)
+            c_ushort,              # nTriggerSource
+            c_ushort,              # nTriggerFilt
+            c_ushort,              # nALT
+            c_ushort               # nTimeDIV
+        ]
+        self.hthard_dll.dsoHTSetCHAndTriggerVB.restype = c_ushort  
+        
+        bCHEnable_array = (c_short * len(self.m_relaycontrol.bCHEnable))(*self.m_relaycontrol.bCHEnable)
+        nCHVoltDIV_array = (c_short * len(self.m_relaycontrol.nCHVoltDIV))(*self.m_relaycontrol.nCHVoltDIV)
+        nCHCoupling_array = (c_short * len(self.m_relaycontrol.nCHCoupling))(*self.m_relaycontrol.nCHCoupling)
+        bCHBWLimit_array = (c_short * len(self.m_relaycontrol.bCHBWLimit))(*self.m_relaycontrol.bCHBWLimit)
+        
+
+        retval = self.hthard_dll.dsoHTSetCHAndTriggerVB(
+            c_ushort(self.scopeid),
+            bCHEnable_array,
+            nCHVoltDIV_array,
+            nCHCoupling_array,
+            bCHBWLimit_array,
+            c_ushort(self.m_stControl.nTriggerSource),
+            c_ushort(self.m_relaycontrol.bTrigFilt),
+            c_ushort(self.m_relaycontrol.nALT),
+            c_ushort(self.m_ntimediv)
+        )
+        
+        if retval == 0:
+            return True
+        else:
+            print(f'dsoHTSetCHAndTriggerVB retval:  {retval}')
+            return False
+    
+    def dsoHTStartCollectData(self):
+        '''
+            param function; scopeid [ nStartControl]
+        '''
+        self.hthard_dll.dsoHTStartCollectData.argtypes = [c_ushort, c_short]
+        self.hthard_dll.dsoHTStartCollectData.restype = c_uint
+        retval = self.hthard_dll.dsoHTStartCollectData(self.scopeid, self.nStartControl_collect)
+        if retval == 0:
+            return True
+        else:
+            print(f'dsoHTSetCHAndTriggerVB retval:  {retval}')
+            return False
+    
+    def dsoHTGetState(self):
+        self.hthard_dll.dsoHTGetState.argtypes = [c_ushort]
+        self.hthard_dll.dsoHTGetState.restype = c_ushort
+        state = self.hthard_dll.dsoHTGetState(self.scopeid)
+        
+        is_triggered = bool(state & 0x01)
+        is_data_finished = bool(state & 0x02)
+        return is_triggered, is_data_finished
+
+    def dsoHTGetData(self):
+        '''
+            param function; scopeid [ pCH1Data_buffer, pCH2Data_buffer, pCH3Data_buffer, pCH4Data_buffer, ControlData]
+        '''
+        pReadData = [(c_ushort * scope.m_stControl.nBufferLen)() for _ in range(scope.MAX_CH_NUM)]
+        # for i in range(scope.MAX_CH_NUM):
+        #     pReadData[i] = (c_ushort * scope.m_stControl.nBufferLen)()
+        
+
+        self.hthard_dll.dsoHTGetData.argtypes = [c_ushort, POINTER(c_ushort), POINTER(c_ushort), POINTER(c_ushort), POINTER(c_ushort), POINTER(ControlData)]
+        self.hthard_dll.dsoHTGetData.restype = c_ushort
+        retval = self.hthard_dll.dsoHTGetData(self.scopeid, pReadData[self.CH1], pReadData[self.CH2], pReadData[self.CH3], pReadData[self.CH4], byref(self.m_stControl))
+        
+        print(f'dsoHTSetCHAndTriggerVB retval:  {retval}')
+        return True, pReadData
+
+
+
+# main operation
+scope = oscilloscope()
+
+class operation():
+    def Init():
+        scope.dsoHTDeviceConnect()
+        scope.set_m_stControl()
+        scope.set_m_relaycontrol()
+        scope.dsoHTDeviceConnect()
+        scope.dsoInitHard()
+        scope.dsoHTADCCHModGain()
+        scope.dsoHTSetAmpCalibrate()
+        scope.dsoHTSetSampleRate()
+        scope.dsoHTSetCHAndTrigger()
+        scope.dsoHTSetRamAndTriggerControl()
+        scope.dsoHTSetCHPos()
+        scope.dsoHTSetVTriggerLevel()
+        scope.dsoHTSetTrigerMode()
+        
+        scope.dsoHTSetCHAndTriggerVB()
+        # scope.dsoHTSetRamAndTrigerControl()
+
+    def read_data():
+        is_triggered, is_data_finished = scope.dsoHTGetState()
+        while not is_data_finished:
+            is_triggered, is_data_finished = scope.dsoHTGetState()
+            if is_data_finished:
+                status, pReadData = scope.dsoHTGetData()
+                return pReadData
+
+    
+    
+
+if __name__ == "__main__":
+    operation.Init()
+    scope.dsoHTStartCollectData()
+    ReadData = operation.read_data()
+    plt.plot(ReadData[0])
+    plt.show()
+    
