@@ -1,4 +1,4 @@
-from ctypes import c_short, POINTER, c_uint, c_uint16, byref , Structure, c_bool, WinDLL, c_ushort, c_int, c_int8, c_int16, c_int32
+from ctypes import c_short, POINTER, c_uint, c_uint16, byref , _SimpleCData, Structure, c_bool, WinDLL, c_ushort, c_int, c_int8, c_int16, c_int32
 import os
 import matplotlib.pyplot as plt
 import numpy as np
@@ -187,6 +187,8 @@ class oscilloscope(object):
         self.nStartControl_collect = self.AUTO
     
         self.nPeak = self.OPEN_PEAK_COLLECTION
+        
+        print(f'TIME_DIV {self.TIME_DIV_INDEX[self.m_ntimediv]}')
         
         
     def set_m_stControl(self):
@@ -491,11 +493,11 @@ class oscilloscope(object):
 
 
 
-# main operation
-scope = oscilloscope()
-
-class operation():
-    def Init():
+class OPERATION():
+    def __init__(self):
+        self.volt_continuous_data =  [[],[],[],[]]
+        
+    def Init(self):
         scope.dsoHTDeviceConnect()
         scope.set_m_stControl()
         scope.set_m_relaycontrol()
@@ -513,21 +515,80 @@ class operation():
         scope.dsoHTSetCHAndTriggerVB()
         # scope.dsoHTSetRamAndTrigerControl()
 
-    def read_data():
-        is_triggered, is_data_finished = scope.dsoHTGetState()
-        while not is_data_finished:
+    def retrieve_data(self, collection_times = 1):
+        loop_cycles = 0
+        while loop_cycles < collection_times:
             is_triggered, is_data_finished = scope.dsoHTGetState()
-            if is_data_finished:
-                status, pReadData = scope.dsoHTGetData()
-                return pReadData
+            while not is_data_finished:
+                trig_d, is_data_finished = scope.dsoHTGetState()
+                if is_data_finished:
+                    sta, pReadData = scope.dsoHTGetData()
+                    
+                    
+                    # discard 1st batch of data
+                    if loop_cycles == 0: pass
+                    else: self.extend_continuous_data(pReadData)
+                    
+                    
+                    loop_cycles += 1
+                    oscilloscope().dsoHTStartCollectData()
+                print(loop_cycles)
+        return pReadData
 
+    def convert_read_data(self, input_data, scale, scale_points=32.0, offset=128):
+        """
+        Converts oscilloscope raw data into true analog voltage values.
+        
+        Parameters:
+        - input_data (list/array): Raw oscilloscope data (ctypes or integer list).
+        - scale (float): Voltage scale (Volt/Div).
+        - scale_points (float): Number of divisions per step (default 32).
+        - offset (int): ADC mid-range offset (default 128 for 8-bit ADC).
+
+        Returns:
+        - np.array: Converted analog voltage values.
+        """
+        if isinstance(input_data[0], _SimpleCData):
+            input_data = np.array([j.value for j in input_data])
+        else:
+            input_data = np.array(input_data, dtype=np.float32)
+        point_div = scale / scale_points
+        return (input_data - offset) * point_div
     
-    
+    def extend_continuous_data(self, pReadData):
+        for num_channel in range(MAX_CH_NUM):
+            volt_div_channel = scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[num_channel]][1]
+            volts_data = self.convert_read_data(pReadData, volt_div_channel)
+            self.volt_continuous_data[num_channel].extend(volts_data[0])
+
+
+
+
+# main operation
+scope = oscilloscope()
+operation = OPERATION()
+
+
 
 if __name__ == "__main__":
     operation.Init()
     scope.dsoHTStartCollectData()
-    ReadData = operation.read_data()
-    plt.plot(ReadData[0])
+    ReadData = operation.retrieve_data(collection_times=50)
+    
+    
+    channel = scope.CH1
+    print(scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
+    
+    voltages = operation.convert_read_data(ReadData[channel], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
+    
+    fig, ax = plt.subplots(nrows= 2, ncols= 1)
+    ax[0].plot(ReadData[channel])
+    ax[0].legend(['raw'])
+    ax[1].plot(voltages)
+    ax[1].legend(['processed'])
+    ax[1].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
     plt.show()
-    # TODO: add scale function for voltage
+    
+    plt.plot(operation.volt_continuous_data[channel])
+    plt.ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
+    plt.show()

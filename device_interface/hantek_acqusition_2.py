@@ -386,7 +386,7 @@ def Init():
     
 def ReadData():
     pReadData = []
-    # pReadData = (c_ushort * MAX_CH_NUM)()
+    pReadData = (c_ushort * MAX_CH_NUM)()
     for i in range(MAX_CH_NUM):
         # pReadData[i] = (c_ushort * m_stControl.nBufferLen)()
         pReadData.append((c_ushort * m_stControl.nBufferLen)())

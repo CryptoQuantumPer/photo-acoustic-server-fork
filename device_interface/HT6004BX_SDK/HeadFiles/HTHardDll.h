@@ -19,33 +19,33 @@ typedef struct _HT_RELAY_CONTROL
         WORD nALT;
 }RELAYCONTROL,*PRELAYCONTROL;
 
-DLL_API WORD WINAPI dsoHTSearchDevice(short* pDevInfo);   //»ñÈ¡1-32¸ö¶Ë¿ÚÊÇ·ñ´æÔÚUSBÉè±¸
+DLL_API WORD WINAPI dsoHTSearchDevice(short* pDevInfo);   //ï¿½ï¿½È¡1-32ï¿½ï¿½ï¿½Ë¿ï¿½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½USBï¿½è±¸
 
-DLL_API WORD WINAPI dsoHTDeviceConnect(WORD nDeviceIndex);    //²âÊÔÉè±¸ÊÇ·ñ´æÔÚ
+DLL_API WORD WINAPI dsoHTDeviceConnect(WORD nDeviceIndex);    //ï¿½ï¿½ï¿½ï¿½ï¿½è±¸ï¿½Ç·ï¿½ï¿½ï¿½ï¿½
 
-DLL_API WORD WINAPI dsoHTSetCHPos(WORD nDeviceIndex,WORD nVoltDIV,WORD nPos,WORD nCH,WORD nCHMode);  //ÉèÖÃCHÐÅºÅµÄ´¹Ö±Î»ÖÃ  OUT£º16-00-00-00
+DLL_API WORD WINAPI dsoHTSetCHPos(WORD nDeviceIndex,WORD nVoltDIV,WORD nPos,WORD nCH,WORD nCHMode);  //ï¿½ï¿½ï¿½ï¿½CHï¿½ÅºÅµÄ´ï¿½Ö±Î»ï¿½ï¿½  OUTï¿½ï¿½16-00-00-00
 
-DLL_API WORD WINAPI dsoHTSetCHDirectLeverPos(WORD nDeviceIndex,WORD nPos,WORD nCH);  //Ö±½ÓÓÃµçÑ¹ÖµÀ´Éè¶¨ÐÅºÅµÄ´¹Ö±Î»ÖÃ
+DLL_API WORD WINAPI dsoHTSetCHDirectLeverPos(WORD nDeviceIndex,WORD nPos,WORD nCH);  //Ö±ï¿½ï¿½ï¿½Ãµï¿½Ñ¹Öµï¿½ï¿½ï¿½è¶¨ï¿½ÅºÅµÄ´ï¿½Ö±Î»ï¿½ï¿½
 
 
-DLL_API WORD WINAPI dsoHTSetVTriggerLevel(WORD nDeviceIndex,WORD nPos,WORD nSensitivity);  //ÉèÖÃ´¥·¢´¹Ö±µçÆ½Î»ÖÃ  Êµ¼ÊµçÑ¹·¶Î§0-1012 ´«Èë²ÎÊý0-255ÊÇÏÔÊ¾µçÑ¹  OUT:16-00-00-01
-//ÉèÖÃ´¥·¢³¤¶ÈºÍÔ¤´¥·¢³¤¶È//(°üÀ¨TriggerË®Æ½Î»ÖÃ)-->²ÎÊýnBufferLen£¨ÄÚ´æ³¤¶È10k£© ±ØÐëÊÇ512µÄÕûÊý±¶Êý,ÇÒ²»ÄÜ>16M    HTriggerPos£ºÔ¤´¥·¢°Ù·Ö±È
-DLL_API WORD WINAPI dsoHTSetHTriggerLength(WORD nDeviceIndex,PCONTROLDATA pControl,WORD nCHMod);  //´¥·¢ºÍÔ¤´¥·¢³¤¶È  OUT:0f-00  
-//Ã»¼ûµ½ÓÃ¹ý¼´Ê¹ÉèÖÃÄÚ´æ³¤¶ÈÒ²Ã»ÓÃ
+DLL_API WORD WINAPI dsoHTSetVTriggerLevel(WORD nDeviceIndex,WORD nPos,WORD nSensitivity);  //ï¿½ï¿½ï¿½Ã´ï¿½ï¿½ï¿½ï¿½ï¿½Ö±ï¿½ï¿½Æ½Î»ï¿½ï¿½  Êµï¿½Êµï¿½Ñ¹ï¿½ï¿½Î§0-1012 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½0-255ï¿½ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½Ñ¹  OUT:16-00-00-01
+//ï¿½ï¿½ï¿½Ã´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Èºï¿½Ô¤ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½//(ï¿½ï¿½ï¿½ï¿½TriggerË®Æ½Î»ï¿½ï¿½)-->ï¿½ï¿½ï¿½ï¿½nBufferLenï¿½ï¿½ï¿½Ú´æ³¤ï¿½ï¿½10kï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½512ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,ï¿½Ò²ï¿½ï¿½ï¿½>16M    HTriggerPosï¿½ï¿½Ô¤ï¿½ï¿½ï¿½ï¿½ï¿½Ù·Ö±ï¿½
+DLL_API WORD WINAPI dsoHTSetHTriggerLength(WORD nDeviceIndex,PCONTROLDATA pControl,WORD nCHMod);  //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô¤ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½  OUT:0f-00  
+//Ã»ï¿½ï¿½ï¿½ï¿½ï¿½Ã¹ï¿½ï¿½ï¿½Ê¹ï¿½ï¿½ï¿½ï¿½ï¿½Ú´æ³¤ï¿½ï¿½Ò²Ã»ï¿½ï¿½
 DLL_API WORD WINAPI dsoHTSetBufferSize(WORD nDeviceIndex,WORD nBufferSize);   //0d-0f
-//ÉèÖÃ£¨24bit£©CH¿ª¹Ø¡¢´¥·¢Ñ¡Ôñ¡¢µçÑ¹µµÎ»¡¢   ¼ÌµçÆ÷£¨8bit£©µÄË¥¼õñîºÏ·½Ê½
-DLL_API WORD WINAPI dsoHTSetCHAndTrigger(WORD nDeviceIndex,PRELAYCONTROL pRelayControl,WORD nTimeDIV);  //OUT:12-00-00-00  //Ô­À´µÄ´¥·¢
+//ï¿½ï¿½ï¿½Ã£ï¿½24bitï¿½ï¿½CHï¿½ï¿½ï¿½Ø¡ï¿½ï¿½ï¿½ï¿½ï¿½Ñ¡ï¿½ñ¡¢µï¿½Ñ¹ï¿½ï¿½Î»ï¿½ï¿½   ï¿½Ìµï¿½ï¿½ï¿½ï¿½ï¿½8bitï¿½ï¿½ï¿½ï¿½Ë¥ï¿½ï¿½ï¿½ï¿½Ï·ï¿½Ê½
+DLL_API WORD WINAPI dsoHTSetCHAndTrigger(WORD nDeviceIndex,PRELAYCONTROL pRelayControl,WORD nTimeDIV);  //OUT:12-00-00-00  //Ô­ï¿½ï¿½ï¿½Ä´ï¿½ï¿½ï¿½
  
-//½ö½öDSO3074 ÓÐÕâ¸ö¹¦ÄÜ
+//ï¿½ï¿½ï¿½ï¿½DSO3074 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 DLL_API WORD WINAPI dsoHTSetCHAndTriggerDirect(WORD nDeviceIndex,PRELAYCONTROL pRelayControl,USHORT nDirect,WORD nDriverCode);
-//Õâ¸öÖ»²»¹ýÊÇdsoHTSetCHAndTriggerÒ»¸ö±äÐÎ
+//ï¿½ï¿½ï¿½Ö»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½dsoHTSetCHAndTriggerÒ»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 DLL_API WORD WINAPI dsoHTSetCHAndTriggerVB(WORD nDeviceIndex,WORD* pCHEnable,WORD* pCHVoltDIV,WORD* pCHCoupling,WORD* pCHBWLimit,WORD nTriggerSource,WORD nTriggerFilt,WORD nALT,WORD nTimeDIV);
 
 
 DLL_API WORD WINAPI dsoHTSetTriggerAndSyncOutput(WORD nDeviceIndex,PCONTROLDATA pControl,WORD nTriggerMode,WORD nTriggerSlope,WORD nPWCondition,
 												 ULONG nPW,USHORT nVideoStandard,USHORT nVedioSyncSelect,USHORT nVideoHsyncNumOption,WORD nSync);
- //ÉèÖÃ´¥·¢·½Ê½
-//ÉèÖÃ²ÉÑùÂÊ
+ //ï¿½ï¿½ï¿½Ã´ï¿½ï¿½ï¿½ï¿½ï¿½Ê½
+//ï¿½ï¿½ï¿½Ã²ï¿½ï¿½ï¿½ï¿½ï¿½
 DLL_API WORD WINAPI dsoHTSetSampleRate(WORD nDeviceIndex,WORD nYTFormat,PRELAYCONTROL pRelayControl,PCONTROLDATA pControl);  //OUT:0e-00
 
 DLL_API WORD WINAPI dsoHTSetSampleRateVi(WORD nDeviceIndex,WORD* pCHEnable,WORD* pCHVoltDIV,WORD* pCHCoupling,WORD* pCHBWLimit,WORD nTriggerSource,WORD nTriggerFilt,
@@ -69,7 +69,7 @@ DLL_API WORD WINAPI dsoHTGetData(WORD nDeviceIndex,WORD* pCH1Data,WORD* pCH2Data
 
 DLL_API WORD WINAPI dsoHTGetScanData(WORD nDeviceIndex,WORD* pCH1Data,WORD* pCH2Data,WORD* pCH3Data,WORD* pCH4Data,PCONTROLDATA pControl);
 
-DLL_API WORD WINAPI dsoHTReadCalibrationData(WORD nDeviceIndex,WORD* pLevel,WORD nLen);
+DLL_API WORD WINAPI dsoHTReadCalibrationData(WORD nDeviceIndexdsoHTReadCalibrationData, WORD *pLevel, WORD nLen);
 
 DLL_API WORD WINAPI dsoHTWriteCalibrationData(WORD nDeviceIndex,WORD* pLevel,WORD nLen);
 
@@ -137,7 +137,7 @@ DLL_API WORD WINAPI dsoSetLANEnable(WORD DeviceIndex,short nEnable);
 
 DLL_API WORD WINAPI dsoWriteIIC(WORD DeviceIndex,PUCHAR pBuffer,ULONG nLenUpdateFileLen);
 
-//2015.02.04 ÐÂÌí ÅúÁ¿Êý¾Ý¶ÁÈ¡Ê±µÄÇ¿ÖÆÖÐ¶Ï
+//2015.02.04 ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý¶ï¿½È¡Ê±ï¿½ï¿½Ç¿ï¿½ï¿½ï¿½Ð¶ï¿½
 //DLL_API WORD WINAPI dsoSDGetData_Suspend(WORD nDeviceIndex,WORD* pCH1Data,WORD* pCH2Data,WORD* pCH3Data,WORD* pCH4Data,PCONTROLDATA pControl,WORD nInsertMode,USHORT* nSuspend);
 
 
@@ -161,14 +161,14 @@ DLL_API WORD WINAPI ddsSDKSetWaveType(WORD DeviceIndex, WORD nType);
 DLL_API float WINAPI ddsSDKSetWavePhase(WORD DeviceIndex, float fPhase);
 DLL_API float WINAPI ddsSDKSetWaveDuty(WORD DeviceIndex, float fDuty);
 
-DLL_API WORD WINAPI dsoHTWRAmpCali(WORD nDeviceIndex,WORD* pLevel,WORD nLen);//Ð´Èë·ù¶ÈÐ£×¼ÐÅÏ¢
-DLL_API WORD WINAPI dsoHTRDAmpCali(WORD nDeviceIndex,WORD* pLevel,WORD nLen);//¶ÁÈ¡·ù¶ÈÐ£×¼ÐÅÏ¢
+DLL_API WORD WINAPI dsoHTWRAmpCali(WORD nDeviceIndex,WORD* pLevel,WORD nLen);//Ð´ï¿½ï¿½ï¿½ï¿½ï¿½Ð£×¼ï¿½ï¿½Ï¢
+DLL_API WORD WINAPI dsoHTRDAmpCali(WORD nDeviceIndex,WORD* pLevel,WORD nLen);//ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½Ð£×¼ï¿½ï¿½Ï¢
 DLL_API WORD WINAPI dsoHTWRADCCali(WORD nDeviceIndex,WORD* pLevel,WORD nLen);
 DLL_API WORD WINAPI dsoHTRDADCCali(WORD nDeviceIndex,WORD* pLevel,WORD nLen);
 DLL_API WORD WINAPI dsoInitHard(WORD DeviceIndex);
 DLL_API WORD WINAPI dsoHTADCCHModGain(WORD DeviceIndex,WORD nCHMod);
 DLL_API WORD WINAPI dsoHTSetAmpCalibrate(WORD nDeviceIndex,WORD nCHSet,WORD nTimeDIV,WORD *nVoltDiv,WORD *pCHPos);
-DLL_API WORD WINAPI dsoHTSetRamAndTrigerControl(WORD DeviceIndex,WORD nTimeDiv,WORD nCHset,WORD nTrigerSource,WORD nPeak);//ÉèÖÃ´¥·¢Ô´
+DLL_API WORD WINAPI dsoHTSetRamAndTrigerControl(WORD DeviceIndex,WORD nTimeDiv,WORD nCHset,WORD nTrigerSource,WORD nPeak);//ï¿½ï¿½ï¿½Ã´ï¿½ï¿½ï¿½Ô´
 DLL_API WORD WINAPI dsoHTSetTrigerMode(WORD m_nDeviceIndex,WORD nTriggerMode,WORD nTriggerSlop,WORD nTriggerCouple);
 DLL_API WORD WINAPI dsoHTSetVideoTriger(WORD m_nDeviceIndex,USHORT nStand,USHORT nVedioSyncSelect,USHORT nVideoHsyncNumOption,USHORT nVideoPositive,WORD nLevel,WORD nLogicTriggerSource);
 DLL_API WORD WINAPI dsoHTSetPulseTriger(WORD m_nDeviceIndex,ULONG nPW,WORD nPWCondition);
