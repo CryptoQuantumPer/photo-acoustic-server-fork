@@ -530,4 +530,4 @@ if __name__ == "__main__":
     ReadData = operation.read_data()
     plt.plot(ReadData[0])
     plt.show()
-    
+    # TODO: add scale function for voltage
