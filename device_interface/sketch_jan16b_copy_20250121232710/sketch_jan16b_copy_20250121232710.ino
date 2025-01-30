@@ -6,14 +6,16 @@ int servo_x_axis_pin = 9;
 int servo_y_axis_pin = 10;
 int hantek_sig_pin = 6;
 int photo_diode_a = 0;
-float pos_x = 0;  //home
-float pos_y = 0;
+int pos_x = 0;  //home
+int pos_y = 0;
 int laser_operation_frq = 1;
-// #define forward_90_per_second 40
-// #define backward_90_per_second 140
+int n_commands = 12;
+// #define forward_90_per_second 50
+// #define backward_90_per_second 130
 
-#define forward_90_per_second  65
-#define backward_90_per_second 115
+// int forward_90_per_second = 65;
+int forward_90_per_second = 45;
+int backward_90_per_second = 135;
 
 
 /*
@@ -52,7 +54,8 @@ void activate_laser(int activation) {
 
 
 String msg;
-const String commands[9] = { "FIREL0", "FIREL1", "LED_BUILTIN1", "LED_BUILTIN0", "MOVE", "HOME", "1000", "FIREL000", "SET_FRQ"};
+const String commands[12] = { "FIREL0", "FIREL1", "LED_BUILTIN1", "LED_BUILTIN0", "MOVE", "HOME",
+                           "1000", "FIREL000", "SET_FRQ", "SPEEDBACK", "SPEEDFOR", "GETSPEED"};
 
 void loop() {
   while (Serial.available()) {
@@ -94,8 +97,9 @@ void loop() {
 
 
     else if (msg_split[0] == commands[4]){ // MOVE Gantry
-      move_position(msg_split[1].toFloat(), msg_split[2].toFloat());
-      Serial.println("MOVED TO POSITION");
+      Serial.print("moving to "); Serial.print(msg_split[1].toInt()); Serial.print(" "); Serial.println(msg_split[2].toInt());
+      move_position(msg_split[1].toInt(), msg_split[2].toInt());
+      // Serial.println("MOVED TO POSITION");
     }
 
 
@@ -143,8 +147,25 @@ void loop() {
       Serial.print("SET new frequency >> "); Serial.print(laser_operation_frq); Serial.print(" hz"); Serial.println();
     }
 
+    else if(msg_split[0] == commands[9]){
+      backward_90_per_second = msg_split[1].toInt();
+      Serial.print("set backward speed "); Serial.println(msg_split[1].toInt());
+    }
+    
+    else if (msg_split[0] == commands[10]){
+      forward_90_per_second = msg_split[1].toInt();
+      Serial.print("set forward speed "); Serial.println(msg_split[1].toInt());
+    }
 
-    else { Serial.println(""); Serial.write("invalid input"); }
+    else if(msg == commands[11]){
+      Serial.print("forward_90_per "); Serial.print(forward_90_per_second); Serial.print("; backward_90_per_second "); Serial.print(backward_90_per_second); Serial.println();
+    }
+
+    else { 
+      Serial.println(""); 
+      Serial.write("invalid input");
+      printCommands();
+      }
   }
 
   // --------periperal operations---------
@@ -167,7 +188,7 @@ void loop() {
 const float gear_dia = 7;
 const float circumference = 3.1415926 * gear_dia * 2;
 
-void move_position(float x, float y) {
+void move_position(int x, int y) {
   servo_x_axis.attach(servo_x_axis_pin);
   servo_y_axis.attach(servo_y_axis_pin);
   // translate to seconds
@@ -191,11 +212,9 @@ void move_position(float x, float y) {
   // if (x_time != 0 || y_time != 0){
   //   Serial.print("time: "); Serial.print(x_time, 5); Serial.print(" "); Serial.println(y_time, 5);
   // }
-  Serial.print("x position "); Serial.print(pos_x, 2); Serial.print("y position "); Serial.println(pos_y, 2);
 
   if (x < pos_x) {
     servo_x_axis.write(forward_90_per_second);
-    Serial.println("forward");
     delay(x_time);
     servo_x_axis.write(90);  //stop
   } else if (x > pos_x) {
@@ -206,7 +225,6 @@ void move_position(float x, float y) {
 
   if (y < pos_y) {
     servo_y_axis.write(forward_90_per_second);
-    Serial.println("forward");
     delay(y_time);
     servo_y_axis.write(90);  //stop
   } else if (y > pos_y) {
@@ -218,7 +236,17 @@ void move_position(float x, float y) {
   // update current position
   pos_x = x;
   pos_y = y;
-  // Serial.print(pos_x, 2); Serial.print(" "); Serial.println(pos_y, 2); // print current position
+  Serial.print("x position "); Serial.print(pos_x); Serial.print(" y position "); Serial.println(pos_y);
   servo_x_axis.detach();
   servo_y_axis.detach();
+}
+
+
+void printCommands() {
+    Serial.println("Available Commands:");
+    for (int i = 0; i < n_commands; i++) {
+        Serial.print(i);
+        Serial.print(": ");
+        Serial.println(commands[i]);
+    }
 }

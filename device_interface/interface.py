@@ -7,10 +7,10 @@ import time
 
 class leonado:
     # serleonado = serial.Serial(port='/dev/cu.usbmodem11401', baudrate=115200, timeout=.1) # mac
-    serleonado = serial.Serial(port='COM18', baudrate=115200, timeout=.1) # windows
+    serleonado = serial.Serial(port='COM20', baudrate=115200, timeout=.1) # windows
     serleonado.timeout = 1
     def read_write_string(string: str, print_response = True):
-        # string = str(string.strip())
+        string = str(string.strip())
         print(f'SEND command {string}')
         leonado.serleonado.write(string.encode())
         time.sleep(0.01)

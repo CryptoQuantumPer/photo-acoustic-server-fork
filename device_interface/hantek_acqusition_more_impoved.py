@@ -597,9 +597,9 @@ class interface(object):
         
         for x, y in zigzag_positions:
             leonado.read_write_string(f'MOVE {x} {y}')
-            print(f'position {x * self.AVERAGE_DISTANCE_STEP} {y * self.AVERAGE_DISTANCE_STEP}')
+            print(f'position {x * self.AVERAGE_DISTANCE_STEP} mm {y * self.AVERAGE_DISTANCE_STEP} mm')
             print(f'position index {x}, {y}')
-            time.sleep(2)
+            time.sleep(1)
                         
 
     def zigzag_coordinates(self, width, height):
@@ -624,12 +624,12 @@ class interface(object):
             
         # add position to home (0,0)
         xdis_home, ydis_home = coordinates[-1][0] - coordinates[0][0], coordinates[-1][1] - coordinates[0][1]
-        x_step = [(x, coordinates[-1][1]) for x in range(xdis_home, 0, -1)]
+        x_step = [(x, coordinates[-1][1]) for x in range(xdis_home-1, 0-1, -1)]
         coordinates.extend(x_step)
-        y_step = [(coordinates[-1][0], y) for y in range(ydis_home, 0, -1)] 
+        y_step = [(coordinates[-1][0], y) for y in range(ydis_home-1, 0-1, -1)] 
         coordinates.extend(y_step)        
         return coordinates
 
 
-
-interface().move_position(10, 5)
+# print(interface().zigzag_coordinates(10, 1))
+interface().move_position(10, 1)
