@@ -51,9 +51,6 @@ void activate_laser(int activation) {
 
 
 
-
-
-
 String msg;
 const String commands[9] = { "FIREL0", "FIREL1", "LED_BUILTIN1", "LED_BUILTIN0", "MOVE", "HOME", "1000", "FIREL000", "SET_FRQ"};
 
@@ -188,12 +185,13 @@ void move_position(float x, float y) {
   float y_time = (y_deg_req / 90) * 1000;
 
   // response
-  if (diviation_x_axis != 0 || diviation_y_axis != 0){
-    Serial.write("diviation"); Serial.write(" ");Serial.print(diviation_x_axis, 5); Serial.write(" "); Serial.print(diviation_y_axis, 5); Serial.println();
-  }
-  if (x_time != 0 || y_time != 0){
-    Serial.print("time: "); Serial.print(x_time, 5); Serial.print(" "); Serial.println(y_time, 5);
-  }
+  // if (diviation_x_axis != 0 || diviation_y_axis != 0){
+  //   Serial.write("diviation"); Serial.write(" ");Serial.print(diviation_x_axis, 5); Serial.write(" "); Serial.print(diviation_y_axis, 5); Serial.println();
+  // }
+  // if (x_time != 0 || y_time != 0){
+  //   Serial.print("time: "); Serial.print(x_time, 5); Serial.print(" "); Serial.println(y_time, 5);
+  // }
+  Serial.print("x position "); Serial.print(pos_x, 2); Serial.print("y position "); Serial.println(pos_y, 2);
 
   if (x < pos_x) {
     servo_x_axis.write(forward_90_per_second);
@@ -217,11 +215,10 @@ void move_position(float x, float y) {
     servo_y_axis.write(90);
   }
 
-
   // update current position
   pos_x = x;
   pos_y = y;
-  Serial.print(pos_x, 2); Serial.print(" "); Serial.println(pos_y, 2); // print current position
+  // Serial.print(pos_x, 2); Serial.print(" "); Serial.println(pos_y, 2); // print current position
   servo_x_axis.detach();
   servo_y_axis.detach();
 }

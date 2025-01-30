@@ -9,8 +9,9 @@ class leonado:
     # serleonado = serial.Serial(port='/dev/cu.usbmodem11401', baudrate=115200, timeout=.1) # mac
     serleonado = serial.Serial(port='COM18', baudrate=115200, timeout=.1) # windows
     serleonado.timeout = 1
-    def read_write_string(string, print_response = True):
-        string = str(string.strip())
+    def read_write_string(string: str, print_response = True):
+        # string = str(string.strip())
+        print(f'SEND command {string}')
         leonado.serleonado.write(string.encode())
         time.sleep(0.01)
         ser_return = leonado.serleonado.readline().decode('ascii')
@@ -40,22 +41,3 @@ class operation():
         leonado.read_write_string('FIREL0')
         leonado.read_write_string('LED_BLINKIN0')
 
-
-# operation.system_matrix_dc()
-
-
-# for i in range(0, 40, 10):
-#     command = f'MOVE {i} 0'
-#     print(command)
-#     leonado.rw_string(command)
-
-
-
-# leonado.rw_string('MOVE 0 0')
-
-# while True:
-#     leonado.rw_string('LED_BUILTIN1')
-#     time.sleep(0.3)
-#     leonado.rw_string('LED_BUILTIN0')
-#     time.sleep(0.3)
-    

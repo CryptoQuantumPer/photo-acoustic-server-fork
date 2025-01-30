@@ -1,7 +1,9 @@
 from ctypes import c_short, POINTER, c_uint, c_uint16, byref , _SimpleCData, Structure, c_bool, WinDLL, c_ushort, c_int, c_int8, c_int16, c_int32
-import os
+import os, time
 import matplotlib.pyplot as plt
 import numpy as np
+from interface import leonado
+
 
 
 base_filepath = os.path.join(os.getcwd(), 'device_interface')
@@ -577,12 +579,56 @@ class ht_OPERATION():
         plt.ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
         plt.show()
 
-class interface():
-    def move(x, y):
+
+
+
+
+
+
+class interface(object):
+    def __init__(self):
+        self.AVERAGE_DISTANCE_STEP = 0.7
+            
+    def move_position(self, width, height):
+        zigzag_positions = self.zigzag_coordinates(width, height)
+        leonado.read_write_string(f'HOME')
         
+        
+        for x, y in zigzag_positions:
+            leonado.read_write_string(f'MOVE {x} {y}')
+            print(f'position {x * self.AVERAGE_DISTANCE_STEP} {y * self.AVERAGE_DISTANCE_STEP}')
+            print(f'position index {x}, {y}')
+            time.sleep(2)
+                        
 
-from interface import leonado
+    def zigzag_coordinates(self, width, height):
+        """
+        Generates zigzag coordinates in a 2D grid.
+        
+        - Moves **right** along x (0 → width-1).
+        - Moves **left** along x (width-1 → 0) in the next row.
+        
+        :param width: Number of x points (horizontal steps)
+        :param height: Number of y points (vertical levels)
+        :return: List of (x, y) coordinates in zigzag order
+        """
+        width = width + 1
+        height = height + 1
+        coordinates = []
+        for y in range(height):
+            if y % 2 == 0: row = [(x, y) for x in range(width)]
+            else: row = [(x, y) for x in range(width - 1, -1, -1)]
+
+            coordinates.extend(row)
+            
+        # add position to home (0,0)
+        xdis_home, ydis_home = coordinates[-1][0] - coordinates[0][0], coordinates[-1][1] - coordinates[0][1]
+        x_step = [(x, coordinates[-1][1]) for x in range(xdis_home, 0, -1)]
+        coordinates.extend(x_step)
+        y_step = [(coordinates[-1][0], y) for y in range(ydis_home, 0, -1)] 
+        coordinates.extend(y_step)        
+        return coordinates
 
 
-AVERAGE_DISTANCE_STEP = 0.3
-leonado.read_write_string(f"MOVE {x} {y}")
+
+interface().move_position(10, 5)

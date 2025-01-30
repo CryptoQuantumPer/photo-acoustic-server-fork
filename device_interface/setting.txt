@@ -3,3 +3,10 @@ Signal factor
 Trigger position 314 mV
 Vsig_volt = 500 mV
 TIME_DIV = 50 us
+
+
+
+Operating setting
+voltage = 5.00 voltage
+amperage = 0.15 A
+recorded Power usage = 0.668 W
