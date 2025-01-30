@@ -581,7 +581,8 @@ class ht_OPERATION():
 
 
 
-
+scope = oscilloscope()
+operation = ht_OPERATION()
 
 
 
