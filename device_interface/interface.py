@@ -9,7 +9,7 @@ class leonado:
     # serleonado = serial.Serial(port='/dev/cu.usbmodem11401', baudrate=115200, timeout=.1) # mac
     serleonado = serial.Serial(port='COM18', baudrate=115200, timeout=.1) # windows
     serleonado.timeout = 1
-    def rw_string(string, print_response = True):
+    def read_write_string(string, print_response = True):
         string = str(string.strip())
         leonado.serleonado.write(string.encode())
         time.sleep(0.01)
@@ -17,6 +17,7 @@ class leonado:
 
         if print_response: print(ser_return)
         time.sleep(0.01)
+        
         return ser_return
 
 
@@ -25,19 +26,19 @@ class operation():
     def datacollection():
         pass
     def system_matrix_dc(): # run system_matrix data collection
-        leonado.rw_string('LED_BLINKIN1')
-        leonado.rw_string('FIREL1')
+        leonado.read_write_string('LED_BLINKIN1')
+        leonado.read_write_string('FIREL1')
 
         # move interval
         for y in range (0, 40):
             for x in range(0, 40):
-                leonado.rw_string(f'MOVE {x} {y}')
+                leonado.read_write_string(f'MOVE {x} {y}')
                 time.sleep(1/operation.laser_frequency)
                 print(x,y)
 
-        leonado.rw_string('MOVE 0 0')
-        leonado.rw_string('FIREL0')
-        leonado.rw_string('LED_BLINKIN0')
+        leonado.read_write_string('MOVE 0 0')
+        leonado.read_write_string('FIREL0')
+        leonado.read_write_string('LED_BLINKIN0')
 
 
 # operation.system_matrix_dc()

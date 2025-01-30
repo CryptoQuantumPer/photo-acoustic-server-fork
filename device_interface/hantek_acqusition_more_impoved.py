@@ -493,7 +493,7 @@ class oscilloscope(object):
 
 
 
-class OPERATION():
+class ht_OPERATION():
     def __init__(self):
         self.volt_continuous_data =  [[],[],[],[]]
         
@@ -561,34 +561,28 @@ class OPERATION():
             volts_data = self.convert_read_data(pReadData, volt_div_channel)
             self.volt_continuous_data[num_channel].extend(volts_data[0])
 
+    def test_collect_plot(self):
+        ReadData = operation.retrieve_data(collection_times=50)
+        channel = scope.CH1
+        voltages = operation.convert_read_data(ReadData[channel], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
+        fig, ax = plt.subplots(nrows= 2, ncols= 1)
+        ax[0].plot(ReadData[channel])
+        ax[0].legend(['raw'])
+        ax[1].plot(voltages)
+        ax[1].legend(['processed'])
+        ax[1].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
+        plt.show()
+        
+        plt.plot(operation.volt_continuous_data[channel])
+        plt.ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
+        plt.show()
+
+class interface():
+    def move(x, y):
+        
+
+from interface import leonado
 
 
-
-# main operation
-scope = oscilloscope()
-operation = OPERATION()
-
-
-
-if __name__ == "__main__":
-    operation.Init()
-    scope.dsoHTStartCollectData()
-    ReadData = operation.retrieve_data(collection_times=50)
-    
-    
-    channel = scope.CH1
-    print(scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
-    
-    voltages = operation.convert_read_data(ReadData[channel], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
-    
-    fig, ax = plt.subplots(nrows= 2, ncols= 1)
-    ax[0].plot(ReadData[channel])
-    ax[0].legend(['raw'])
-    ax[1].plot(voltages)
-    ax[1].legend(['processed'])
-    ax[1].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
-    plt.show()
-    
-    plt.plot(operation.volt_continuous_data[channel])
-    plt.ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
-    plt.show()
+AVERAGE_DISTANCE_STEP = 0.3
+leonado.read_write_string(f"MOVE {x} {y}")
