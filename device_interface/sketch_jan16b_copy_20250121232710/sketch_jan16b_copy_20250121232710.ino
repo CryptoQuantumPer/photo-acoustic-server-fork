@@ -1,15 +1,16 @@
 #include <Servo.h>
 Servo servo_x_axis;
 Servo servo_y_axis;
-int laser_relay_pin = 5;
-int servo_x_axis_pin = 9;
-int servo_y_axis_pin = 10;
-int hantek_sig_pin = 6;
-int photo_diode_a = 0;
-int pos_x = 0;  //home
-int pos_y = 0;
+#define laser_relay_pin 5
+#define servo_x_axis_pin 9
+#define servo_y_axis_pin 10
+#define hantek_sig_pin 6
+#define limit_switch 3
+#define photo_diode_a 0
+float pos_x = 0;  //home
+float pos_y = 0;
 int laser_operation_frq = 1;
-int n_commands = 12;
+int n_commands = 13;
 // #define forward_90_per_second 50
 // #define backward_90_per_second 130
 
@@ -29,6 +30,54 @@ void move90degress(range_mm){
 */
 
 
+
+void find_optimal_value(float forward_start , float backward_start, int steps_bf_turn = 10, float alpha = 0.3){
+  // calibrate x axis only with limit_switch
+  int x_initial_position = 0;
+  while (digitalRead(limit_switch) == 0) {
+    move_position(x_initial_position, 0);
+    x_initial_position--; 
+  }
+  SETHOME();
+
+  float forward_90_per_second = forward_start;
+  float backward_90_per_second = backward_start;
+
+  int offset = 0;
+  for(int x = 0; x < steps_bf_turn; x++){
+    move_position(x, 0);
+    delay(1000);
+  }
+  int x = steps_bf_turn;
+  for(; x > 0; x--){
+    move_position(x, 0);
+    delay(1000);
+
+    if (digitalRead(limit_switch) == 1){ // early read
+      offset = steps_bf_turn - x;
+      break;
+    }
+  }
+
+  while(true){
+    if (digitalRead(limit_switch) == 0){ // continue to move if not triggered
+      offset--;
+      x--;
+      move_position(x, 0);
+      delay(1000);
+    }
+    if (digitalRead(limit_switch) == 1){
+      break;
+    }
+  }
+  float rate_summation = offset * alpha;
+  forward_90_per_second = forward_90_per_second + rate_summation;
+  backward_90_per_second = backward_90_per_second + rate_summation;
+  Serial.print("SET new forward and backward value to >>"); Serial.print(forward_90_per_second); Serial.print(" "); Serial.println(backward_90_per_second); 
+  Serial.print("OffSet >> "); Serial.println(offset);
+}
+
+
 void setup() {
   Serial.begin(115600);
   Serial.setTimeout(1);
@@ -37,29 +86,18 @@ void setup() {
   pinMode(laser_relay_pin, OUTPUT);
   pinMode(servo_x_axis_pin, OUTPUT);
   pinMode(servo_y_axis_pin, OUTPUT);
-}
-
-
-
-void activate_laser(int activation) {
-  digitalWrite(laser_relay_pin, activation);
-  if (activation == LOW) {
-    Serial.println("L_off");
-  } else if (activation == HIGH) {
-    Serial.println("L_on");
-  }
+  pinMode(limit_switch, INPUT);
 }
 
 
 
 
 String msg;
-const String commands[12] = { "FIREL0", "FIREL1", "LED_BUILTIN1", "LED_BUILTIN0", "MOVE", "HOME",
-                           "1000", "FIREL000", "SET_FRQ", "SPEEDBACK", "SPEEDFOR", "GETSPEED"};
+const String commands[13] = { "FIREL0", "FIREL1", "LED_BUILTIN1", "LED_BUILTIN0", "MOVE", "HOME",
+                           "1000", "FIREL000", "SET_FRQ", "SPEEDBACK", "SPEEDFOR", "GETSPEED", "CALIBRATION"};
 
 void loop() {
   while (Serial.available()) {
-
     msg = Serial.readStringUntil('\n');
 
     //------split msg---------
@@ -82,34 +120,22 @@ void loop() {
     else if (msg == commands[1]) {
       activate_laser(HIGH);
     } 
-
-
     else if (msg == commands[2]) { // LED_on
       digitalWrite(LED_BUILTIN, HIGH);
       Serial.println("LED_BUILTIN_on");
     } 
-
-
     else if (msg == commands[3]) { // LED_off
       digitalWrite(LED_BUILTIN, LOW);
       Serial.println("LED_BUILTIN_off");
     } 
-
-
     else if (msg_split[0] == commands[4]){ // MOVE Gantry
       Serial.print("moving to "); Serial.print(msg_split[1].toInt()); Serial.print(" "); Serial.println(msg_split[2].toInt());
       move_position(msg_split[1].toInt(), msg_split[2].toInt());
       // Serial.println("MOVED TO POSITION");
     }
-
-
     else if (msg == commands[5]){ // home
-      pos_x = 0; pos_y = 0;
-      Serial.println("SETHOME");
+      SETHOME();
     }
-
-
-
     // 1000 DURATION_UNTIL_RETURN  SPEED // test for servo rotation rate
     else if (msg_split[0] == commands[6]){ 
       Serial.println("MOVE 1000ms");
@@ -127,6 +153,7 @@ void loop() {
       servo_x_axis.detach();
     }
     
+
     else if (msg_split[0] == commands[7]){
       int fire_cycles = msg_split[1].toInt();
       Serial.print("FIRE "); Serial.print(fire_cycles); Serial.println(" times");
@@ -141,6 +168,7 @@ void loop() {
       // digitalWrite(hantek_sig_pin, LOW);
       activate_laser(LOW);
     }
+
     //settings for new laser operating frequency
     else if (msg_split[0] == commands[8]){
       laser_operation_frq = msg_split[1].toInt();
@@ -161,12 +189,20 @@ void loop() {
       Serial.print("forward_90_per "); Serial.print(forward_90_per_second); Serial.print("; backward_90_per_second "); Serial.print(backward_90_per_second); Serial.println();
     }
 
+    else if(msg_split[0] == commands[12]){
+      while(true){
+        find_optimal_value(forward_90_per_second, backward_90_per_second, 10);
+      }
+    }
+
     else { 
       Serial.println(""); 
       Serial.write("invalid input");
       printCommands();
       }
   }
+
+
 
   // --------periperal operations---------
   int photo_readout = analogRead(photo_diode_a);
@@ -177,7 +213,11 @@ void loop() {
     delay(100);
   }
   digitalWrite(hantek_sig_pin, LOW);
+
+
+
 }
+
 
 
 
@@ -188,7 +228,7 @@ void loop() {
 const float gear_dia = 7;
 const float circumference = 3.1415926 * gear_dia * 2;
 
-void move_position(int x, int y) {
+void move_position(float x, float y) {
   servo_x_axis.attach(servo_x_axis_pin);
   servo_y_axis.attach(servo_y_axis_pin);
   // translate to seconds
@@ -242,6 +282,12 @@ void move_position(int x, int y) {
 }
 
 
+void SETHOME(){
+  pos_x = 0; pos_y = 0;
+  Serial.println("SETHOME");
+}
+
+
 void printCommands() {
     Serial.println("Available Commands:");
     for (int i = 0; i < n_commands; i++) {
@@ -250,3 +296,16 @@ void printCommands() {
         Serial.println(commands[i]);
     }
 }
+
+void activate_laser(int activation) {
+  digitalWrite(laser_relay_pin, activation);
+  if (activation == LOW) {
+    Serial.println("L_off");
+  } else if (activation == HIGH) {
+    Serial.println("L_on");
+  }
+}
+
+
+
+

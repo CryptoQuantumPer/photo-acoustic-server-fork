@@ -1,5 +1,8 @@
-from ctypes import c_short, POINTER, c_uint, c_uint16, byref , _SimpleCData, Structure, c_bool, WinDLL, c_ushort, c_int, c_int8, c_int16, c_int32
-import os, time
+import os, time, sys
+from ctypes import c_short, POINTER, c_uint, c_uint16, byref , _SimpleCData, Structure,c_bool, c_ushort, c_int, c_int8, c_int16, c_int32
+if sys.platform == "win32":
+    from ctypes import WinDLL
+else: WinDLL = None
 import matplotlib.pyplot as plt
 import numpy as np
 from interface import leonado
@@ -580,10 +583,12 @@ class ht_OPERATION():
         plt.show()
 
 
-
-scope = oscilloscope()
-operation = ht_OPERATION()
-
+if sys.platform == 'win32':
+    scope = oscilloscope()
+    operation = ht_OPERATION()
+else:
+    scope = None
+    operation = None
 
 
 class interface(object):
@@ -629,6 +634,7 @@ class interface(object):
         y_step = [(coordinates[-1][0], y) for y in range(ydis_home-1, 0-1, -1)] 
         coordinates.extend(y_step)        
         return coordinates
+
 
 
 # print(interface().zigzag_coordinates(10, 1))
