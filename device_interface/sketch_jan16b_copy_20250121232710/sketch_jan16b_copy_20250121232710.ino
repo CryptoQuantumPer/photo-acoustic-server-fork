@@ -51,7 +51,6 @@ const String commands[14] = { "FIREL0", "FIREL1", "LED_BUILTIN1", "LED_BUILTIN0"
 
 
 
-
 void go_home(){
   int x_initial_position = 0; // go back to home
   while (analogRead(limit_switch) != 0) {

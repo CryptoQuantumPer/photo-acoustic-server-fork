@@ -1,4 +1,4 @@
-import os, time, sys
+import os, time, sys, json
 from ctypes import c_short, POINTER, c_uint, c_uint16, byref , _SimpleCData, Structure,c_bool, c_ushort, c_int, c_int8, c_int16, c_int32
 if sys.platform == "win32":
     from ctypes import WinDLL
@@ -176,12 +176,12 @@ class oscilloscope(object):
         
         # ------settings-----
         self.nCHMode = 4
-        self.m_ntimediv = 14
+        self.m_ntimediv = 17
         self.m_nYTFormat = self.YT_NORMAL
         self.nTrigSource = self.CH1
         self.bCHEnable = [1, 1, 1, 1]
-        self.nCHVoltDIV = [9, 9, 9, 9]
-        self.nCHCoupling = [self.AC, self.AC, self.AC, self.AC]
+        self.nCHVoltDIV = [8, 10, 9, 9]
+        self.nCHCoupling = [self.AC, self.DC, self.AC, self.AC]
         self.bCHBWLimit = [0, 0, 0, 0]
         self.nPos_channel = [128, 128, 128, 128]
         self.nSensitivity_trigger = 1
@@ -501,6 +501,7 @@ class oscilloscope(object):
 class ht_OPERATION():
     def __init__(self):
         self.volt_continuous_data =  [[],[],[],[]]
+        self.position_continuous_collect = []
         
     def Init(self):
         scope.dsoHTDeviceConnect()
@@ -520,7 +521,7 @@ class ht_OPERATION():
         scope.dsoHTSetCHAndTriggerVB()
         # scope.dsoHTSetRamAndTrigerControl()
 
-    def retrieve_data(self, collection_times = 2):
+    def retrieve_data(self, collection_times = 10):
         loop_cycles = 0
         while loop_cycles < collection_times:
             is_triggered, is_data_finished = scope.dsoHTGetState()
@@ -566,24 +567,26 @@ class ht_OPERATION():
             volts_data = self.convert_read_data(pReadData[num_channel], volt_div_channel)
             self.volt_continuous_data[num_channel].extend(volts_data)
 
-    def test_collect_plot(self):
-        ReadData = self.retrieve_data(collection_times=100)
+    def test_collect_plot(self, debug_plot = True):
+        ReadData = self.retrieve_data(collection_times=50)
         channel = scope.CH1
         voltages = self.convert_read_data(ReadData[channel], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
         fig, ax = plt.subplots(nrows= 2, ncols= 1)
-        ax[0].plot(ReadData[channel])
-        ax[0].legend(['raw'])
-        ax[1].plot(voltages)
-        ax[1].legend(['processed'])
-        ax[1].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
-        plt.show()
         
-        fig, ax = plt.subplots(nrows= 2, ncols= 1)
-        ax[0].plot(operation.volt_continuous_data[channel])
-        ax[0].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
-        ax[1].plot(operation.volt_continuous_data[scope.CH2])
-        ax[1].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH2]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH2]][1])
-        plt.show()
+        if debug_plot == True:
+            ax[0].plot(ReadData[channel])
+            ax[0].legend(['raw'])
+            ax[1].plot(voltages)
+            ax[1].legend(['processed'])
+            ax[1].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
+            plt.show()
+            
+            fig, ax = plt.subplots(nrows= 2, ncols= 1)
+            ax[0].plot(operation.volt_continuous_data[channel])
+            ax[0].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
+            ax[1].plot(operation.volt_continuous_data[scope.CH2])
+            ax[1].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH2]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH2]][1])
+            plt.show()
 
 
 # if sys.platform == 'win32':
@@ -642,16 +645,17 @@ class interface(object):
         return coordinates
     
 
-    def move_position(self, width, height):
+    def move_position(self, width, height, fire_steps = False):
         positions = self.backandforth_pattern(width, height)
         leonado.read_write_string(f'HOME')
         for x, y, fire, ret in positions:
             leonado.read_write_string(f'MOVE {x} {y}')
             # leonado.read_write_string(f'LED_BUILTIN{int(fire)}')
             
-            leonado.read_write_string(f'FIREL000 1')
-            scope.dsoHTStartCollectData()
-            operation.test_collect_plot()
+            if fire == True and fire_steps == True: 
+                leonado.read_write_string(f'FIREL000 1')
+                scope.dsoHTStartCollectData()
+                operation.test_collect_plot()
             
             time.sleep(0.5)
             
@@ -662,6 +666,18 @@ class interface(object):
                 
         leonado.read_write_string(f'XHOME')
         time.sleep(5)
+        
+        fig, ax = plt.subplots(nrows= 2, ncols= 1)
+        ax[0].plot(operation.volt_continuous_data[scope.CH1])
+        ax[0].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH1]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH1]][1])
+        ax[1].plot(operation.volt_continuous_data[scope.CH2])
+        ax[1].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH2]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH2]][1])
+        plt.show()
+        
+        json_df = {'ultrasoinc': operation.volt_continuous_data[scope.CH1], 'sig': operation.volt_continuous_data[scope.CH2]}
+        with open(os.path.join(os.getcwd(), 'device_interface', 'data.json'), 'w') as f:
+            json.dump(f, json_df)
+            
 
 
 
@@ -673,4 +689,4 @@ operation = ht_OPERATION()
 if __name__ == "__main__":
     scope.dsoHTGetState()
     operation.Init()
-    interface().move_position(25, 20)
+    interface().move_position(25, 20, fire = False)
