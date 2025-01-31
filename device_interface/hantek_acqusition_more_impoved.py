@@ -176,7 +176,7 @@ class oscilloscope(object):
         
         # ------settings-----
         self.nCHMode = 4
-        self.m_ntimediv = 0
+        self.m_ntimediv = 14
         self.m_nYTFormat = self.YT_NORMAL
         self.nTrigSource = self.CH1
         self.bCHEnable = [1, 1, 1, 1]
@@ -520,7 +520,7 @@ class ht_OPERATION():
         scope.dsoHTSetCHAndTriggerVB()
         # scope.dsoHTSetRamAndTrigerControl()
 
-    def retrieve_data(self, collection_times = 1):
+    def retrieve_data(self, collection_times = 2):
         loop_cycles = 0
         while loop_cycles < collection_times:
             is_triggered, is_data_finished = scope.dsoHTGetState()
@@ -563,13 +563,13 @@ class ht_OPERATION():
     def extend_continuous_data(self, pReadData):
         for num_channel in range(MAX_CH_NUM):
             volt_div_channel = scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[num_channel]][1]
-            volts_data = self.convert_read_data(pReadData, volt_div_channel)
-            self.volt_continuous_data[num_channel].extend(volts_data[0])
+            volts_data = self.convert_read_data(pReadData[num_channel], volt_div_channel)
+            self.volt_continuous_data[num_channel].extend(volts_data)
 
     def test_collect_plot(self):
-        ReadData = operation.retrieve_data(collection_times=50)
+        ReadData = self.retrieve_data(collection_times=100)
         channel = scope.CH1
-        voltages = operation.convert_read_data(ReadData[channel], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
+        voltages = self.convert_read_data(ReadData[channel], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
         fig, ax = plt.subplots(nrows= 2, ncols= 1)
         ax[0].plot(ReadData[channel])
         ax[0].legend(['raw'])
@@ -578,35 +578,22 @@ class ht_OPERATION():
         ax[1].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
         plt.show()
         
-        plt.plot(operation.volt_continuous_data[channel])
-        plt.ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
+        fig, ax = plt.subplots(nrows= 2, ncols= 1)
+        ax[0].plot(operation.volt_continuous_data[channel])
+        ax[0].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
+        ax[1].plot(operation.volt_continuous_data[scope.CH2])
+        ax[1].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH2]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH2]][1])
         plt.show()
 
 
-if sys.platform == 'win32':
-    scope = oscilloscope()
-    operation = ht_OPERATION()
-else:
-    scope = None
-    operation = None
+# if sys.platform == 'win32':
+
 
 
 class interface(object):
     def __init__(self):
         self.AVERAGE_DISTANCE_STEP = 0.7
-            
-    def move_position(self, width, height):
-        zigzag_positions = self.zigzag_coordinates(width, height)
-        leonado.read_write_string(f'HOME')
-        
-        
-        for x, y in zigzag_positions:
-            leonado.read_write_string(f'MOVE {x} {y}')
-            print(f'position {x * self.AVERAGE_DISTANCE_STEP} mm {y * self.AVERAGE_DISTANCE_STEP} mm')
-            print(f'position index {x}, {y}')
-            time.sleep(1)
-                        
-
+                               
     def zigzag_coordinates(self, width, height):
         """
         Generates zigzag coordinates in a 2D grid.
@@ -624,18 +611,66 @@ class interface(object):
         for y in range(height):
             if y % 2 == 0: row = [(x, y) for x in range(width)]
             else: row = [(x, y) for x in range(width - 1, -1, -1)]
-
             coordinates.extend(row)
+            
             
         # add position to home (0,0)
         xdis_home, ydis_home = coordinates[-1][0] - coordinates[0][0], coordinates[-1][1] - coordinates[0][1]
         x_step = [(x, coordinates[-1][1]) for x in range(xdis_home-1, 0-1, -1)]
         coordinates.extend(x_step)
         y_step = [(coordinates[-1][0], y) for y in range(ydis_home-1, 0-1, -1)] 
-        coordinates.extend(y_step)        
+        coordinates.extend(y_step)
         return coordinates
+    
+    def backandforth_pattern(self, width, height):
+        width+=1
+        height+=1
+        coordinates = []
+        for y in range(height):
+            x_steps = [(x, y, True, False) for x in range(width)]
+            coordinates.extend(x_steps)
+            x_steps_reverse = [(x, y, False, False) for x in range(width-1, 0, -1)]
+            coordinates.extend(x_steps_reverse)
+
+        # return to home
+        xdis_home, ydis_home = coordinates[-1][0] - coordinates[0][0], coordinates[-1][1] - coordinates[0][1]
+        x_step = [(x, coordinates[-1][1], False, True) for x in range(xdis_home-1, 0-1, -1)]
+        coordinates.extend(x_step)
+        y_step = [(coordinates[-1][0], y, False, True) for y in range(ydis_home-1, 0-1, -1)] 
+        coordinates.extend(y_step)
+        
+        return coordinates
+    
+
+    def move_position(self, width, height):
+        positions = self.backandforth_pattern(width, height)
+        leonado.read_write_string(f'HOME')
+        for x, y, fire, ret in positions:
+            leonado.read_write_string(f'MOVE {x} {y}')
+            # leonado.read_write_string(f'LED_BUILTIN{int(fire)}')
+            
+            leonado.read_write_string(f'FIREL000 1')
+            scope.dsoHTStartCollectData()
+            operation.test_collect_plot()
+            
+            time.sleep(0.5)
+            
+            if x == 0 and ret == False:
+                leonado.read_write_string(f'XHOME')
+                time.sleep(3)
+                
+                
+        leonado.read_write_string(f'XHOME')
+        time.sleep(5)
 
 
 
-# print(interface().zigzag_coordinates(10, 1))
-interface().move_position(10, 1)
+
+
+scope = oscilloscope()
+operation = ht_OPERATION()
+
+if __name__ == "__main__":
+    scope.dsoHTGetState()
+    operation.Init()
+    interface().move_position(25, 20)

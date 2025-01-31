@@ -10,72 +10,22 @@ Servo servo_y_axis;
 float pos_x = 0;  //home
 float pos_y = 0;
 int laser_operation_frq = 1;
-int n_commands = 13;
-// #define forward_90_per_second 50
-// #define backward_90_per_second 130
+int n_commands = 14;
 
-// int forward_90_per_second = 65;
-int forward_90_per_second = 45;
-int backward_90_per_second = 135;
 
+float forward_90_per_second = 55.90;
+float backward_90_per_second = 123.10;
 
 /*
 servo settings
-42 for 90+/sec
-120 for 90-/sec
-void move90degress(range_mm){
-    servo.move(90) center
-    servo.move
-}
+  55.90 123.10
+  64 115
+  50 130
 */
 
 
 
-void find_optimal_value(float forward_start , float backward_start, int steps_bf_turn = 10, float alpha = 0.3){
-  // calibrate x axis only with limit_switch
-  int x_initial_position = 0;
-  while (digitalRead(limit_switch) == 0) {
-    move_position(x_initial_position, 0);
-    x_initial_position--; 
-  }
-  SETHOME();
 
-  float forward_90_per_second = forward_start;
-  float backward_90_per_second = backward_start;
-
-  int offset = 0;
-  for(int x = 0; x < steps_bf_turn; x++){
-    move_position(x, 0);
-    delay(1000);
-  }
-  int x = steps_bf_turn;
-  for(; x > 0; x--){
-    move_position(x, 0);
-    delay(1000);
-
-    if (digitalRead(limit_switch) == 1){ // early read
-      offset = steps_bf_turn - x;
-      break;
-    }
-  }
-
-  while(true){
-    if (digitalRead(limit_switch) == 0){ // continue to move if not triggered
-      offset--;
-      x--;
-      move_position(x, 0);
-      delay(1000);
-    }
-    if (digitalRead(limit_switch) == 1){
-      break;
-    }
-  }
-  float rate_summation = offset * alpha;
-  forward_90_per_second = forward_90_per_second + rate_summation;
-  backward_90_per_second = backward_90_per_second + rate_summation;
-  Serial.print("SET new forward and backward value to >>"); Serial.print(forward_90_per_second); Serial.print(" "); Serial.println(backward_90_per_second); 
-  Serial.print("OffSet >> "); Serial.println(offset);
-}
 
 
 void setup() {
@@ -87,140 +37,191 @@ void setup() {
   pinMode(servo_x_axis_pin, OUTPUT);
   pinMode(servo_y_axis_pin, OUTPUT);
   pinMode(limit_switch, INPUT);
+  pinMode(3, INPUT);
 }
 
 
 
 
 String msg;
-const String commands[13] = { "FIREL0", "FIREL1", "LED_BUILTIN1", "LED_BUILTIN0", "MOVE", "HOME",
-                           "1000", "FIREL000", "SET_FRQ", "SPEEDBACK", "SPEEDFOR", "GETSPEED", "CALIBRATION"};
+const String commands[14] = { "FIREL0", "FIREL1", "LED_BUILTIN1", "LED_BUILTIN0", "MOVE", "HOME",
+                           "1000", "FIREL000", "SET_FRQ", "SPEEDBACK", "SPEEDFOR", "GETSPEED", "CALIBRATION", "XHOME"};
 
-void loop() {
-  while (Serial.available()) {
-    msg = Serial.readStringUntil('\n');
 
-    //------split msg---------
-    String msg_split[3];
-    int i = 0;
-    int token_start = 0;
-    int token_end = msg.indexOf(' ');
-    while (token_end != -1) {
-      msg_split[i++] = msg.substring(token_start, token_end);
-      token_start = token_end + 1;
-      token_end = msg.indexOf(' ', token_start);
-    }
-    msg_split[i] = msg.substring(token_start);
 
-    //--------run functions------------
-    if (msg == commands[0]) {
-      activate_laser(LOW);
-    } 
 
-    else if (msg == commands[1]) {
-      activate_laser(HIGH);
-    } 
-    else if (msg == commands[2]) { // LED_on
-      digitalWrite(LED_BUILTIN, HIGH);
-      Serial.println("LED_BUILTIN_on");
-    } 
-    else if (msg == commands[3]) { // LED_off
-      digitalWrite(LED_BUILTIN, LOW);
-      Serial.println("LED_BUILTIN_off");
-    } 
-    else if (msg_split[0] == commands[4]){ // MOVE Gantry
-      Serial.print("moving to "); Serial.print(msg_split[1].toInt()); Serial.print(" "); Serial.println(msg_split[2].toInt());
-      move_position(msg_split[1].toInt(), msg_split[2].toInt());
-      // Serial.println("MOVED TO POSITION");
-    }
-    else if (msg == commands[5]){ // home
-      SETHOME();
-    }
-    // 1000 DURATION_UNTIL_RETURN  SPEED // test for servo rotation rate
-    else if (msg_split[0] == commands[6]){ 
-      Serial.println("MOVE 1000ms");
-      int speed = msg_split[2].toInt();
-      int reverse_speed = (90-speed) + 90;
-      servo_x_axis.attach(servo_x_axis_pin);
-      servo_x_axis.write(speed);
-      delay(1000);
-      servo_x_axis.write(90);
-      delay(msg_split[1].toInt());
 
-      servo_x_axis.write(reverse_speed);
-      delay(1000);
-      servo_x_axis.write(90);
-      servo_x_axis.detach();
-    }
-    
 
-    else if (msg_split[0] == commands[7]){
-      int fire_cycles = msg_split[1].toInt();
-      Serial.print("FIRE "); Serial.print(fire_cycles); Serial.println(" times");
-      activate_laser(HIGH);
+void go_home(){
+  int x_initial_position = 0; // go back to home
+  while (analogRead(limit_switch) != 0) {
+    move_position(x_initial_position, 0);
+    x_initial_position--; 
+  }
+  pos_x = 0;
+}
 
-      for (int i = 0; i < fire_cycles; i++){
-        while (analogRead(photo_diode_a) < 1000){} // delay
-        // digitalWrite(hantek_sig_pin, HIGH);
-        // delay(100);
-        // delay((1/laser_operation_frq) * 1000);
-      }
-      // digitalWrite(hantek_sig_pin, LOW);
-      activate_laser(LOW);
-    }
+int _optimal_(int offset, float alpha = 0.3){
+  float rate_summation = offset * alpha;
+  return rate_summation;
+}
 
-    //settings for new laser operating frequency
-    else if (msg_split[0] == commands[8]){
-      laser_operation_frq = msg_split[1].toInt();
-      Serial.print("SET new frequency >> "); Serial.print(laser_operation_frq); Serial.print(" hz"); Serial.println();
-    }
+void find_optimal_value(float forward_start , float backward_start, int steps_bf_turn = 10, float alpha = 0.3){
+  
+  go_home();
+  forward_90_per_second = forward_start;
+  backward_90_per_second = backward_start;
 
-    else if(msg_split[0] == commands[9]){
-      backward_90_per_second = msg_split[1].toInt();
-      Serial.print("set backward speed "); Serial.println(msg_split[1].toInt());
-    }
-    
-    else if (msg_split[0] == commands[10]){
-      forward_90_per_second = msg_split[1].toInt();
-      Serial.print("set forward speed "); Serial.println(msg_split[1].toInt());
-    }
-
-    else if(msg == commands[11]){
-      Serial.print("forward_90_per "); Serial.print(forward_90_per_second); Serial.print("; backward_90_per_second "); Serial.print(backward_90_per_second); Serial.println();
-    }
-
-    else if(msg_split[0] == commands[12]){
-      while(true){
-        find_optimal_value(forward_90_per_second, backward_90_per_second, 10);
-      }
-    }
-
-    else { 
-      Serial.println(""); 
-      Serial.write("invalid input");
-      printCommands();
-      }
+  int offset = 0;
+  for(int x = 0; x < steps_bf_turn; x++){ // go to steps_bf_turn "backward"
+    move_position(x, 0);
   }
 
-
-
-  // --------periperal operations---------
-  int photo_readout = analogRead(photo_diode_a);
-  while (photo_readout >= 1000){
-    Serial.print("PEAK ");Serial.println(photo_readout);
-    photo_readout = analogRead(photo_diode_a);
-    digitalWrite(hantek_sig_pin, HIGH);
-    delay(100);
+  int x = steps_bf_turn;
+  while(analogRead(limit_switch) != 0) {
+    move_position(x, 0);
+    x--;
   }
-  digitalWrite(hantek_sig_pin, LOW);
+  offset = x * -1; //if + means go slower; - go faster
 
-
-
+  float rate_summation = _optimal_(offset);
+  forward_90_per_second = forward_90_per_second + rate_summation;
+  backward_90_per_second = backward_90_per_second + rate_summation;
+  Serial.print("SET new forward and backward value to >>"); Serial.print(forward_90_per_second); Serial.print(" "); Serial.println(backward_90_per_second); 
+  Serial.print("OffSet >> "); Serial.print(offset); Serial.print(" changes to val: ");Serial.println(rate_summation);
 }
 
 
 
 
+
+
+
+
+
+void loop() {
+  while (Serial.available()) {
+        msg = Serial.readStringUntil('\n');
+
+        //------split msg---------
+        String msg_split[3];
+        int i = 0;
+        int token_start = 0;
+        int token_end = msg.indexOf(' ');
+        while (token_end != -1) {
+          msg_split[i++] = msg.substring(token_start, token_end);
+          token_start = token_end + 1;
+          token_end = msg.indexOf(' ', token_start);
+        }
+        msg_split[i] = msg.substring(token_start);
+
+        //--------run functions------------
+        if (msg == commands[0]) {
+          activate_laser(LOW);
+        } 
+
+        else if (msg == commands[1]) {
+          activate_laser(HIGH);
+        } 
+        else if (msg == commands[2]) { // LED_on
+          digitalWrite(LED_BUILTIN, HIGH);
+          Serial.println("LED_BUILTIN_on");
+        } 
+        else if (msg == commands[3]) { // LED_off
+          digitalWrite(LED_BUILTIN, LOW);
+          Serial.println("LED_BUILTIN_off");
+        } 
+        else if (msg_split[0] == commands[4]){ // MOVE Gantry
+          Serial.print("moving to "); Serial.print(msg_split[1].toInt()); Serial.print(" "); Serial.println(msg_split[2].toInt());
+          move_position(msg_split[1].toInt(), msg_split[2].toInt());
+          // Serial.println("MOVED TO POSITION");
+        }
+        else if (msg == commands[5]){ // home
+          SETHOME();
+        }
+        // 1000 DURATION_UNTIL_RETURN  SPEED // test for servo rotation rate
+        else if (msg_split[0] == commands[6]){ 
+          Serial.println("MOVE 1000ms");
+          int speed = msg_split[2].toInt();
+          int reverse_speed = (90-speed) + 90;
+          servo_x_axis.attach(servo_x_axis_pin);
+          servo_x_axis.write(speed);
+          delay(1000);
+          servo_x_axis.write(90);
+          delay(msg_split[1].toInt());
+
+          servo_x_axis.write(reverse_speed);
+          delay(1000);
+          servo_x_axis.write(90);
+          servo_x_axis.detach();
+        }
+        
+
+        else if (msg_split[0] == commands[7]){
+          int fire_cycles = msg_split[1].toInt();
+          Serial.print("FIRE "); Serial.print(fire_cycles); Serial.println(" times");
+          activate_laser(HIGH);
+
+          for (int i = 0; i < fire_cycles; i++){
+            while (analogRead(photo_diode_a) < 1000){} // delay
+
+          }
+          activate_laser(LOW);
+        }
+
+        //settings for new laser operating frequency
+        else if (msg_split[0] == commands[8]){
+          laser_operation_frq = msg_split[1].toInt();
+          Serial.print("SET new frequency >> "); Serial.print(laser_operation_frq); Serial.print(" hz"); Serial.println();
+        }
+
+        else if(msg_split[0] == commands[9]){
+          backward_90_per_second = msg_split[1].toInt();
+          Serial.print("set backward speed "); Serial.println(msg_split[1].toInt());
+        }
+        
+        else if (msg_split[0] == commands[10]){
+          forward_90_per_second = msg_split[1].toInt();
+          Serial.print("set forward speed "); Serial.println(msg_split[1].toInt());
+        }
+
+        else if(msg == commands[11]){
+          Serial.print("forward_90_per "); Serial.print(forward_90_per_second); Serial.print("; backward_90_per_second "); Serial.print(backward_90_per_second); Serial.println();
+        }
+
+        else if(msg_split[0] == commands[12]){
+          while(true){
+            Serial.print("forward_90_per "); Serial.print(forward_90_per_second); Serial.print("; backward_90_per_second "); Serial.print(backward_90_per_second); Serial.println();
+            find_optimal_value(forward_90_per_second, backward_90_per_second, 10);
+          }
+        }
+
+
+        else if(msg == commands[13]){
+          go_home();
+        }
+
+
+        else { 
+          Serial.println(""); 
+          Serial.write("invalid input");
+          printCommands();
+          }
+  }
+
+
+  // --------PERIPERIAL OPERATION---------
+  int photo_readout = analogRead(photo_diode_a);
+  while (photo_readout >= 1000){
+        Serial.print("PEAK ");Serial.println(photo_readout);
+        photo_readout = analogRead(photo_diode_a);
+        digitalWrite(hantek_sig_pin, HIGH);
+        delay(100);
+  }
+  digitalWrite(hantek_sig_pin, LOW);
+
+
+}
 
 
 
@@ -229,56 +230,48 @@ const float gear_dia = 7;
 const float circumference = 3.1415926 * gear_dia * 2;
 
 void move_position(float x, float y) {
-  servo_x_axis.attach(servo_x_axis_pin);
-  servo_y_axis.attach(servo_y_axis_pin);
-  // translate to seconds
+  if (analogRead(limit_switch) != 0 || x >= pos_x){  // run only while not limit
+      servo_x_axis.attach(servo_x_axis_pin);
+      servo_y_axis.attach(servo_y_axis_pin);
 
-  float diviation_x_axis = abs(x - pos_x);  // mm
-  float diviation_y_axis = abs(y - pos_y);  // mm
+      float diviation_x_axis = abs(x - pos_x);  // mm
+      float diviation_y_axis = abs(y - pos_y);  // mm
+      float x_deg_req = (diviation_x_axis / circumference) * 360;
+      float y_deg_req = (diviation_y_axis / circumference) * 360;
+      float x_time = (x_deg_req / 90) * 1000;
+      float y_time = (y_deg_req / 90) * 1000;
 
+      
+      
+      if (x < pos_x) {
+        servo_x_axis.write(forward_90_per_second);
+        delay(x_time);
+        servo_x_axis.write(90);  //stop
+      } else if (x > pos_x) {
+        servo_x_axis.write(backward_90_per_second);
+        delay(x_time);
+        servo_x_axis.write(90);
+      }
 
+      if (y < pos_y) {
+        servo_y_axis.write(forward_90_per_second);
+        delay(y_time);
+        servo_y_axis.write(90);  //stop
+      } else if (y > pos_y) {
+        servo_y_axis.write(backward_90_per_second);
+        delay(y_time);
+        servo_y_axis.write(90);
+      }
 
-  // convert 90*/sec to mm/sec
-  // time = (deg_req / rate_of_rotation) * 1000 (convert to ms)
-  float x_deg_req = (diviation_x_axis / circumference) * 360;
-  float y_deg_req = (diviation_y_axis / circumference) * 360;
-  float x_time = (x_deg_req / 90) * 1000;
-  float y_time = (y_deg_req / 90) * 1000;
-
-  // response
-  // if (diviation_x_axis != 0 || diviation_y_axis != 0){
-  //   Serial.write("diviation"); Serial.write(" ");Serial.print(diviation_x_axis, 5); Serial.write(" "); Serial.print(diviation_y_axis, 5); Serial.println();
-  // }
-  // if (x_time != 0 || y_time != 0){
-  //   Serial.print("time: "); Serial.print(x_time, 5); Serial.print(" "); Serial.println(y_time, 5);
-  // }
-
-  if (x < pos_x) {
-    servo_x_axis.write(forward_90_per_second);
-    delay(x_time);
-    servo_x_axis.write(90);  //stop
-  } else if (x > pos_x) {
-    servo_x_axis.write(backward_90_per_second);
-    delay(x_time);
-    servo_x_axis.write(90);
+      pos_x = x; // update current position
+      pos_y = y;
+      // Serial.print("x position "); Serial.print(pos_x); Serial.print(" y position "); Serial.println(pos_y);
+      servo_x_axis.detach();
+      servo_y_axis.detach();
+  } 
+  else{
+    Serial.println("LIMIT");
   }
-
-  if (y < pos_y) {
-    servo_y_axis.write(forward_90_per_second);
-    delay(y_time);
-    servo_y_axis.write(90);  //stop
-  } else if (y > pos_y) {
-    servo_y_axis.write(backward_90_per_second);
-    delay(y_time);
-    servo_y_axis.write(90);
-  }
-
-  // update current position
-  pos_x = x;
-  pos_y = y;
-  Serial.print("x position "); Serial.print(pos_x); Serial.print(" y position "); Serial.println(pos_y);
-  servo_x_axis.detach();
-  servo_y_axis.detach();
 }
 
 
