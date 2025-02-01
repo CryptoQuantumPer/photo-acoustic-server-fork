@@ -673,8 +673,6 @@ class ht_OPERATION():
 
 
 
-
-
 class interface(object):
     def __init__(self):
         self.AVERAGE_DISTANCE_STEP = 0.7
