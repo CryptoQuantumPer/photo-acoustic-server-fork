@@ -677,7 +677,7 @@ class ht_OPERATION():
 
 class interface(object):
     def __init__(self):
-        self.npz_filedata_path = np.load(os.path.join(base_filepath, 'data.npz'))
+        self.npz_filedata_path = os.path.join(base_filepath, 'data.npz')
         self.AVERAGE_DISTANCE_STEP = 0.7
                                
     def zigzag_coordinates(self, width, height ):
@@ -734,7 +734,7 @@ class interface(object):
         height+=1
         coordinates = []
         for y in range(height):
-            x_steps = [(x, y, bool(x % steps_before_data_collection == 0 and y % steps_before_data_collection), False) for x in range(width)]
+            x_steps = [(x, y, bool(x % steps_before_data_collection == 0 and y % steps_before_data_collection == 0), False) for x in range(width)]
             coordinates.extend(x_steps)
             x_steps_reverse = [(x, y, False, False) for x in range(width-1, 0, -1)]
             coordinates.extend(x_steps_reverse)
@@ -763,22 +763,20 @@ class interface(object):
         - list: Updated coordinates after trimming.
         """
         if continue_from_previous:
-            try:
                 # Load the last saved position
                 saved_data = np.load(self.npz_filedata_path, allow_pickle=True)
-                previously_saved_pos = saved_data['position'][-1]
+                previously_saved_pos = saved_data['posfire'][-1]
 
                 print(f"Previously saved position: {previously_saved_pos}")
 
                 # Find the index of the last saved position in coordinates
-                if previously_saved_pos in coordinates:
-                    index = coordinates.index(previously_saved_pos)
+                # print(previously_saved_pos, coordinates )
+                if tuple(previously_saved_pos) in [(x, y) for x, y, fire, return_pos in coordinates]:
+                    index = [(x, y) for x, y, fire, return_pos in coordinates].index(tuple(previously_saved_pos))
                     print(f"Found position at index: {index}, trimming before this index.")
                     coordinates = coordinates[index:]  # Keep values from that index onward
                 else:
                     print("⚠️ Previously saved position not found in coordinates. No trimming applied.")
-            except (FileNotFoundError, KeyError, IndexError):
-                print("⚠️ No previous data found or error reading file. Starting fresh.")
         return coordinates
      
     def move_position(self, width, height, fire_steps = False, steps = 1, mat_plot = True, continue_from_previous = False):
@@ -811,12 +809,12 @@ class interface(object):
         # home        
         leonado.read_write_string(f'XHOME') 
         time.sleep(5)
-        fig, ax = plt.subplots(nrows= 2, ncols= 1)
-        ax[0].plot(operation.volt_continuous_data[scope.CH1])
-        ax[0].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH1]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH1]][1])
-        ax[1].plot(operation.volt_continuous_data[scope.CH2])
-        ax[1].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH2]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH2]][1])
-        plt.show()
+        # fig, ax = plt.subplots(nrows= 2, ncols= 1)
+        # ax[0].plot(operation.volt_continuous_data[scope.CH1])
+        # ax[0].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH1]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH1]][1])
+        # ax[1].plot(operation.volt_continuous_data[scope.CH2])
+        # ax[1].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH2]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH2]][1])
+        # plt.show()
         
             
 
@@ -828,10 +826,10 @@ operation = ht_OPERATION()
 if __name__ == "__main__":
     scope.dsoHTGetState()
     operation.Init()
-    interface().move_position(25, 20, 
+    interface().move_position(20, 20, 
                               fire_steps = True, 
                               mat_plot=False, 
-                              continue_from_previous = True)
+                              continue_from_previous = False)
 
 
 #TODO: higher frequency for laser
