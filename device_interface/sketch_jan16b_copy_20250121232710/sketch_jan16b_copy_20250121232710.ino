@@ -51,10 +51,10 @@ const String commands[14] = { "FIREL0", "FIREL1", "LED_BUILTIN1", "LED_BUILTIN0"
 
 
 
-void go_home(){
+void zero_x(){
   int x_initial_position = 0; // go back to home
   while (analogRead(limit_switch) != 0) {
-    move_position(x_initial_position, 0);
+    move_position(x_initial_position, pos_y);
     x_initial_position--; 
   }
   pos_x = 0;
@@ -67,7 +67,7 @@ int _optimal_(int offset, float alpha = 0.3){
 
 void find_optimal_value(float forward_start , float backward_start, int steps_bf_turn = 10, float alpha = 0.3){
   
-  go_home();
+  zero_x();
   forward_90_per_second = forward_start;
   backward_90_per_second = backward_start;
 
@@ -197,7 +197,7 @@ void loop() {
 
 
         else if(msg == commands[13]){
-          go_home();
+          zero_x();
         }
 
 
