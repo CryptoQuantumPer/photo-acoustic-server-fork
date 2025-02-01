@@ -677,9 +677,10 @@ class ht_OPERATION():
 
 class interface(object):
     def __init__(self):
+        self.npz_filedata_path = np.load(os.path.join(base_filepath, 'data.npz'))
         self.AVERAGE_DISTANCE_STEP = 0.7
                                
-    def zigzag_coordinates(self, width, height):
+    def zigzag_coordinates(self, width, height ):
         """
         Generates zigzag coordinates in a 2D grid.
         
@@ -706,7 +707,7 @@ class interface(object):
         y_step = [(coordinates[-1][0], y) for y in range(ydis_home-1, 0-1, -1)] 
         coordinates.extend(y_step)
         return coordinates
-    def backandforth_pattern(self, width, height):
+    def backandforth_pattern(self, width, height, continue_from_previous):
         width+=1
         height+=1
         coordinates = []
@@ -722,14 +723,71 @@ class interface(object):
         coordinates.extend(x_step)
         y_step = [(coordinates[-1][0], y, False, True) for y in range(ydis_home-1, 0-1, -1)] 
         coordinates.extend(y_step)
+
+        if continue_from_previous:
+            self.trim_coordinates(coordinates)
         
         return coordinates
+    
+    def backandforth_pattern_each(self, width, height, continue_from_previous, steps_before_data_collection = 1):
+        width+=1
+        height+=1
+        coordinates = []
+        for y in range(height):
+            x_steps = [(x, y, bool(x % steps_before_data_collection == 0 and y % steps_before_data_collection), False) for x in range(width)]
+            coordinates.extend(x_steps)
+            x_steps_reverse = [(x, y, False, False) for x in range(width-1, 0, -1)]
+            coordinates.extend(x_steps_reverse)
+
+        # return to home
+        xdis_home, ydis_home = coordinates[-1][0] - coordinates[0][0], coordinates[-1][1] - coordinates[0][1]
+        x_step = [(x, coordinates[-1][1], False, True) for x in range(xdis_home-1, 0-1, -1)]
+        coordinates.extend(x_step)
+        y_step = [(coordinates[-1][0], y, False, True) for y in range(ydis_home-1, 0-1, -1)] 
+        coordinates.extend(y_step)
+
+        if continue_from_previous:
+            self.trim_coordinates(coordinates)
+        
+        return coordinates
+
+    def trim_coordinates(self, coordinates, continue_from_previous=True):
+        """
+        Trims the `coordinates` list by removing all values before the previously saved position.
+
+        Parameters:
+        - coordinates (list of tuples): List of (x, y) positions.
+        - continue_from_previous (bool): Whether to continue from the last saved position.
+
+        Returns:
+        - list: Updated coordinates after trimming.
+        """
+        if continue_from_previous:
+            try:
+                # Load the last saved position
+                saved_data = np.load(self.npz_filedata_path, allow_pickle=True)
+                previously_saved_pos = saved_data['position'][-1]
+
+                print(f"Previously saved position: {previously_saved_pos}")
+
+                # Find the index of the last saved position in coordinates
+                if previously_saved_pos in coordinates:
+                    index = coordinates.index(previously_saved_pos)
+                    print(f"Found position at index: {index}, trimming before this index.")
+                    coordinates = coordinates[index:]  # Keep values from that index onward
+                else:
+                    print("⚠️ Previously saved position not found in coordinates. No trimming applied.")
+            except (FileNotFoundError, KeyError, IndexError):
+                print("⚠️ No previous data found or error reading file. Starting fresh.")
+        return coordinates
      
-    def move_position(self, width, height, fire_steps = False, mat_plot = True):
-        positions = self.backandforth_pattern(width, height)
+    def move_position(self, width, height, fire_steps = False, steps = 1, mat_plot = True, continue_from_previous = False):
+        positions = self.backandforth_pattern(width, height, continue_from_previous)
+        positions = self.backandforth_pattern_each(width, height, continue_from_previous, steps_before_data_collection = 4)
+
         
         leonado.read_write_string(f'XHOME')
-        time.sleep(10)
+        time.sleep(6)
         leonado.read_write_string(f'MOVE 0 -10')
         time.sleep(5)
         leonado.read_write_string(f'HOME')
@@ -762,8 +820,7 @@ class interface(object):
         
             
 
-
-
+        
 
 scope = oscilloscope()
 operation = ht_OPERATION()
@@ -773,8 +830,10 @@ if __name__ == "__main__":
     operation.Init()
     interface().move_position(25, 20, 
                               fire_steps = True, 
-                              mat_plot=False)
+                              mat_plot=False, 
+                              continue_from_previous = True)
 
 
 #TODO: higher frequency for laser
 #TODO: update position of each firing
+# resolution change steps_before_data_collection
