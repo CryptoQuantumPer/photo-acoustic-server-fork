@@ -10,3 +10,8 @@ Operating setting
 voltage = 5.00 voltage
 amperage = 0.15 A
 recorded Power usage = 0.668 W
+
+
+Laser settings
+frequency = 5
+power = 2000 mJ/cm2

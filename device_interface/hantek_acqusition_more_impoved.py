@@ -1,5 +1,8 @@
-from ctypes import c_short, POINTER, c_uint, c_uint16, byref , _SimpleCData, Structure, c_bool, WinDLL, c_ushort, c_int, c_int8, c_int16, c_int32
-import os, time
+import os, time, sys, json
+from ctypes import c_short, POINTER, c_uint, c_uint16, byref , _SimpleCData, Structure,c_bool, c_ushort, c_int, c_int8, c_int16, c_int32
+if sys.platform == "win32":
+    from ctypes import WinDLL
+else: WinDLL = None
 import matplotlib.pyplot as plt
 import numpy as np
 from interface import leonado
@@ -173,12 +176,12 @@ class oscilloscope(object):
         
         # ------settings-----
         self.nCHMode = 4
-        self.m_ntimediv = 0
+        self.m_ntimediv = 17
         self.m_nYTFormat = self.YT_NORMAL
         self.nTrigSource = self.CH1
         self.bCHEnable = [1, 1, 1, 1]
-        self.nCHVoltDIV = [9, 9, 9, 9]
-        self.nCHCoupling = [self.AC, self.AC, self.AC, self.AC]
+        self.nCHVoltDIV = [8, 11, 9, 9]
+        self.nCHCoupling = [self.AC, self.DC, self.AC, self.AC]
         self.bCHBWLimit = [0, 0, 0, 0]
         self.nPos_channel = [128, 128, 128, 128]
         self.nSensitivity_trigger = 1
@@ -498,6 +501,11 @@ class oscilloscope(object):
 class ht_OPERATION():
     def __init__(self):
         self.volt_continuous_data =  [[],[],[],[]]
+        self.position_continuous_collect = []
+        self.JSON_DATA_PATH = os.path.join(base_filepath, 'data.json')
+        self.NPZ_DATA_PATH = os.path.join(base_filepath, 'data.npz')
+        self.SAVE_SIZE = 20000
+        self.process_data_volts = 0.15
         
     def Init(self):
         scope.dsoHTDeviceConnect()
@@ -517,7 +525,7 @@ class ht_OPERATION():
         scope.dsoHTSetCHAndTriggerVB()
         # scope.dsoHTSetRamAndTrigerControl()
 
-    def retrieve_data(self, collection_times = 1):
+    def retrieve_data(self, collection_times = 10):
         loop_cycles = 0
         while loop_cycles < collection_times:
             is_triggered, is_data_finished = scope.dsoHTGetState()
@@ -557,51 +565,120 @@ class ht_OPERATION():
         point_div = scale / scale_points
         return (input_data - offset) * point_div
     
+    def save_json_extend(self, newdata: dict):
+        '''pram newdata = {'ultrasonic': list, 'sig': list, 'fireposiiton' tuple:list}'''
+        if os.path.exists(self.JSON_DATA_PATH):
+            try:
+                with open(self.JSON_DATA_PATH, 'r') as f:
+                    old_data = json.load(f)
+            except (json.JSONDecodeError, FileNotFoundError):
+                old_data = {}  # corrupted start fresh
+        else: old_data = {}
+
+        for key, new_values in newdata.items():
+            if key in old_data and isinstance(old_data[key], list):
+                old_data[key].extend(new_values)
+            else: old_data[key] = new_values
+        with open(self.JSON_DATA_PATH, 'w') as f:
+            json.dump(old_data, f, indent=4)  
+            
+    def save_npz_extend(self, newdata: dict):
+        """
+        Extends and saves data in `.npz` format.
+        
+        Parameters:
+        - newdata (dict): New data to extend existing `.npz` file.
+                        Example: {'ultrasonic': list, 'sig': list, 'fireposition': list}
+        """
+        # Define `.npz` file path
+        npz_path = self.NPZ_DATA_PATH
+        if os.path.exists(npz_path):
+            try:
+                old_data = np.load(npz_path, allow_pickle=True)
+                old_data_dict = {key: old_data[key].tolist() for key in old_data.files}
+            except Exception as e:
+                print(f"Error loading existing data: {e}")
+                old_data_dict = {}  # Start fresh if file is corrupted
+        else:
+            old_data_dict = {}
+
+        # Extend or initialize new data
+        for key, new_values in newdata.items():
+            if isinstance(new_values, np.ndarray):
+                new_values = new_values.tolist()
+            if key in old_data_dict:
+                old_data_dict[key].extend(new_values)
+            else: old_data_dict[key] = new_values
+            
+        np.savez(npz_path, **{k: np.array(v, dtype=np.float32) for k, v in old_data_dict.items()})
+    
     def extend_continuous_data(self, pReadData):
         for num_channel in range(MAX_CH_NUM):
             volt_div_channel = scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[num_channel]][1]
-            volts_data = self.convert_read_data(pReadData, volt_div_channel)
-            self.volt_continuous_data[num_channel].extend(volts_data[0])
-
-    def test_collect_plot(self):
-        ReadData = operation.retrieve_data(collection_times=50)
-        channel = scope.CH1
-        voltages = operation.convert_read_data(ReadData[channel], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
-        fig, ax = plt.subplots(nrows= 2, ncols= 1)
-        ax[0].plot(ReadData[channel])
-        ax[0].legend(['raw'])
-        ax[1].plot(voltages)
-        ax[1].legend(['processed'])
-        ax[1].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
-        plt.show()
+            volts_data = self.convert_read_data(pReadData[num_channel], volt_div_channel)
+            self.volt_continuous_data[num_channel].extend(volts_data)
+    
+    def process_data(self, ultrasonic, sig = None):
+        ultrasonic = np.array(ultrasonic)
         
-        plt.plot(operation.volt_continuous_data[channel])
-        plt.ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
-        plt.show()
+        significant_indices = np.where(np.abs(ultrasonic) > self.process_data_volts)[0] # > 0.01V
+        if len(significant_indices) > 0:
+            start_idx = significant_indices[0]  # First occurrence above 0.07V
+            end_idx = significant_indices[-1]   # Last occurrence above 0.07V
+
+            significant_data = ultrasonic[start_idx:end_idx + 1]
+        else: significant_data = np.array([])  # No significant data found
+            
+        if significant_data.shape[0] > self.SAVE_SIZE: trimmed_data = significant_data[:self.SAVE_SIZE] # trim
+        elif significant_data.shape[0] < self.SAVE_SIZE: # smaller add padding
+            trimmed_data = np.pad(significant_data, (0, self.SAVE_SIZE - significant_data.shape[0]), mode='constant')
+        else:
+            trimmed_data = significant_data
+            
+        return trimmed_data
+    
+    def save_continuousDat_to_npz(self) :    
+        print("Saving Data to npz file") 
+        cropped_data_peak = self.process_data(self.volt_continuous_data[scope.CH1])
+        
+             
+        npz_df = {'ultrasonic': np.array(cropped_data_peak), #save data
+                   'posfire': np.array(self.position_continuous_collect, dtype= np.int8)}
+        self.save_npz_extend(npz_df)
+        
+        
+        self.volt_continuous_data = [[], [], [], []] # reset var after saveded   
+        self.position_continuous_collect = []
+
+    def test_collect_plot(self, mat_plot = True):
+        ReadData = self.retrieve_data(collection_times=20)
+        channel = scope.CH1
+        voltages = self.convert_read_data(ReadData[channel], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
+        fig, ax = plt.subplots(nrows= 2, ncols= 1)
+        
+        if mat_plot == True:
+            ax[0].plot(ReadData[channel])
+            ax[0].legend(['raw'])
+            ax[1].plot(voltages)
+            ax[1].legend(['processed'])
+            ax[1].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
+            plt.show()
+            
+            fig, ax = plt.subplots(nrows= 2, ncols= 1)
+            ax[0].plot(operation.volt_continuous_data[channel])
+            ax[0].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
+            ax[1].plot(operation.volt_continuous_data[scope.CH2])
+            ax[1].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH2]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH2]][1])
+            plt.show()
 
 
-
-scope = oscilloscope()
-operation = ht_OPERATION()
 
 
 
 class interface(object):
     def __init__(self):
         self.AVERAGE_DISTANCE_STEP = 0.7
-            
-    def move_position(self, width, height):
-        zigzag_positions = self.zigzag_coordinates(width, height)
-        leonado.read_write_string(f'HOME')
-        
-        
-        for x, y in zigzag_positions:
-            leonado.read_write_string(f'MOVE {x} {y}')
-            print(f'position {x * self.AVERAGE_DISTANCE_STEP} {y * self.AVERAGE_DISTANCE_STEP}')
-            print(f'position index {x}, {y}')
-            time.sleep(2)
-                        
-
+                               
     def zigzag_coordinates(self, width, height):
         """
         Generates zigzag coordinates in a 2D grid.
@@ -619,17 +696,89 @@ class interface(object):
         for y in range(height):
             if y % 2 == 0: row = [(x, y) for x in range(width)]
             else: row = [(x, y) for x in range(width - 1, -1, -1)]
-
             coordinates.extend(row)
+            
             
         # add position to home (0,0)
         xdis_home, ydis_home = coordinates[-1][0] - coordinates[0][0], coordinates[-1][1] - coordinates[0][1]
-        x_step = [(x, coordinates[-1][1]) for x in range(xdis_home, 0, -1)]
+        x_step = [(x, coordinates[-1][1]) for x in range(xdis_home-1, 0-1, -1)]
         coordinates.extend(x_step)
-        y_step = [(coordinates[-1][0], y) for y in range(ydis_home, 0, -1)] 
-        coordinates.extend(y_step)        
+        y_step = [(coordinates[-1][0], y) for y in range(ydis_home-1, 0-1, -1)] 
+        coordinates.extend(y_step)
         return coordinates
+    def backandforth_pattern(self, width, height):
+        width+=1
+        height+=1
+        coordinates = []
+        for y in range(height):
+            x_steps = [(x, y, True, False) for x in range(width)]
+            coordinates.extend(x_steps)
+            x_steps_reverse = [(x, y, False, False) for x in range(width-1, 0, -1)]
+            coordinates.extend(x_steps_reverse)
+
+        # return to home
+        xdis_home, ydis_home = coordinates[-1][0] - coordinates[0][0], coordinates[-1][1] - coordinates[0][1]
+        x_step = [(x, coordinates[-1][1], False, True) for x in range(xdis_home-1, 0-1, -1)]
+        coordinates.extend(x_step)
+        y_step = [(coordinates[-1][0], y, False, True) for y in range(ydis_home-1, 0-1, -1)] 
+        coordinates.extend(y_step)
+        
+        return coordinates
+     
+    def move_position(self, width, height, fire_steps = False, mat_plot = True):
+        positions = self.backandforth_pattern(width, height)
+        
+        leonado.read_write_string(f'XHOME')
+        time.sleep(10)
+        leonado.read_write_string(f'MOVE 0 -10')
+        time.sleep(5)
+        leonado.read_write_string(f'HOME')
+        
+        for x, y, fire, ret in positions:
+            leonado.read_write_string(f'MOVE {x} {y}')
+            if fire == True and fire_steps == True: # fire laser
+                leonado.read_write_string(f'FIREL000 1')
+                scope.dsoHTStartCollectData()
+                operation.test_collect_plot(mat_plot = mat_plot)
+                
+                operation.position_continuous_collect.append((x, y)) # log firing position
+                # if x == width: operation.save_continuousDat_to_npz() # save data at last width
+                operation.save_continuousDat_to_npz()
+                
+            time.sleep(0.5)   
+            if x == 0 and ret == False: # return to x=0 each y step
+                leonado.read_write_string(f'XHOME')
+                time.sleep(3)
+
+        # home        
+        leonado.read_write_string(f'XHOME') 
+        time.sleep(5)
+        fig, ax = plt.subplots(nrows= 2, ncols= 1)
+        ax[0].plot(operation.volt_continuous_data[scope.CH1])
+        ax[0].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH1]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH1]][1])
+        ax[1].plot(operation.volt_continuous_data[scope.CH2])
+        ax[1].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH2]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH2]][1])
+        plt.show()
+        
+            
 
 
 
-interface().move_position(10, 5)
+
+
+
+
+
+scope = oscilloscope()
+operation = ht_OPERATION()
+
+if __name__ == "__main__":
+    scope.dsoHTGetState()
+    operation.Init()
+    interface().move_position(25, 20, 
+                              fire_steps = True, 
+                              mat_plot=False)
+
+
+#TODO: higher frequency for laser
+#TODO: update position of each firing
