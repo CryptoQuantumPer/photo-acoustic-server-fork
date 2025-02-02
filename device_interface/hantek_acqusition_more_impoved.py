@@ -819,6 +819,7 @@ class interface(object):
     def move_and_collect_sensor_data(self, x, y, collection_times = 20):
         x+=1
         y+=1
+        leonado.read_write_string("XHOME")
         for pos_y in range(y):
             coordinates = [(pos_x, pos_y) for pos_x in range(x)] # go to position
         for x,y in coordinates:
@@ -850,7 +851,7 @@ if __name__ == "__main__":
     #                           fire_steps = True, 
     #                           mat_plot=False, 
     #                           continue_from_previous = False)
-    interface().move_and_collect_sensor_data(20, 20, 20)
+    interface().move_and_collect_sensor_data(0, 0, 20)
 
 
 #TODO: higher frequency for laser
