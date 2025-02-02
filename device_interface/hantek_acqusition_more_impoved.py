@@ -833,7 +833,7 @@ class interface(object):
         voltages = operation.convert_read_data(ReadData[channel], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
 
         # save voltages npz
-        self.save_npz_extend({"sensor_data_noisy": voltages})
+        operation.save_npz_extend({"sensor_data_noisy": voltages})
 
 
 
