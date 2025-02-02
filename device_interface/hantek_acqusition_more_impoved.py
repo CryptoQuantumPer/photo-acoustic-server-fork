@@ -828,7 +828,7 @@ class interface(object):
         # fire
         leonado.read_write_string(f"FIREL000 1")
         scope.dsoHTStartCollectData() # start collection
-        ReadData = self.retrieve_data(collection_times = collection_times)
+        ReadData = operation.retrieve_data(collection_times = collection_times)
         channel = scope.CH1
         voltages = self.convert_read_data(ReadData[channel], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
 

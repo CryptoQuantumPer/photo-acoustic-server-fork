@@ -261,9 +261,6 @@ void move_position(float x, float y) {
         delay(y_time);
         servo_y_axis.write(90);
       }
-
-      pos_x = x; // update current position
-      pos_y = y;
       // Serial.print("x position "); Serial.print(pos_x); Serial.print(" y position "); Serial.println(pos_y);
       servo_x_axis.detach();
       servo_y_axis.detach();
@@ -271,6 +268,9 @@ void move_position(float x, float y) {
   else{
     Serial.println("LIMIT");
   }
+  pos_x = x; // update current position
+  pos_y = y;
+  
 }
 
 
