@@ -815,10 +815,30 @@ class interface(object):
         # ax[1].plot(operation.volt_continuous_data[scope.CH2])
         # ax[1].set_ylim(-scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH2]][1], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[scope.CH2]][1])
         # plt.show()
-        
-            
+    
+    def move_and_collect_sensor_data(self, x, y, collection_times = 20):
+        x+=1
+        y+=1
+        for pos_y in range(y):
+            coordinates = [(pos_x, pos_y) for pos_x in range(x)] # go to position
+        for x,y in coordinates:
+            leonado.read_write_string(f"MOVE {x} {y}")
+            time.sleep(0.5)
 
-        
+        # fire
+        leonado.read_write_string(f"FIREL000 1")
+        scope.dsoHTStartCollectData() # start collection
+        ReadData = self.retrieve_data(collection_times = collection_times)
+        channel = scope.CH1
+        voltages = self.convert_read_data(ReadData[channel], scope.VOLT_DIV_INDEX[scope.nCHVoltDIV[channel]][1])
+
+        # save voltages npz
+        self.save_npz_extend({"sensor_data_noisy": voltages})
+
+
+
+
+
 
 scope = oscilloscope()
 operation = ht_OPERATION()
@@ -826,10 +846,11 @@ operation = ht_OPERATION()
 if __name__ == "__main__":
     scope.dsoHTGetState()
     operation.Init()
-    interface().move_position(20, 20, 
-                              fire_steps = True, 
-                              mat_plot=False, 
-                              continue_from_previous = False)
+    # interface().move_position(20, 20, 
+    #                           fire_steps = True, 
+    #                           mat_plot=False, 
+    #                           continue_from_previous = False)
+    interface().move_and_collect_sensor_data(20, 20, 20)
 
 
 #TODO: higher frequency for laser
